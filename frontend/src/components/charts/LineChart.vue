@@ -1,6 +1,6 @@
 <template>
   <apexchart
-    type="area"
+    type="line"
     :height="height"
     :options="chartOptions"
     :series="series"
@@ -11,50 +11,41 @@
 import { computed } from 'vue'
 
 const props = defineProps<{
-  data: { x: string | number; y: number | null }[]
-  label?: string
-  color?: string
+  series: { name: string; data: (number | null)[]; color?: string }[]
+  categories: string[]
   height?: number
   unit?: string
   yMin?: number
   yMax?: number
+  smooth?: boolean
 }>()
-
-const series = computed(() => [{
-  name: props.label ?? '',
-  data: props.data,
-}])
 
 const chartOptions = computed(() => ({
   chart: {
     background: 'transparent',
     toolbar: { show: false },
-    sparkline: { enabled: false },
-    animations: { enabled: true, speed: 600 },
+    animations: { enabled: true, speed: 500 },
   },
   theme: { mode: 'dark' },
-  colors: [props.color ?? '#00D4AA'],
-  fill: {
-    type: 'gradient',
-    gradient: {
-      shadeIntensity: 1,
-      opacityFrom: 0.3,
-      opacityTo: 0.01,
-      stops: [0, 100],
-    },
+  colors: props.series.map(s => s.color).filter(Boolean).length
+    ? props.series.map(s => s.color ?? '#00D4AA')
+    : ['#00D4AA', '#FF6B35', '#7C6FCD'],
+  stroke: {
+    curve: props.smooth !== false ? 'smooth' : 'straight',
+    width: props.series.map(() => 2),
+    dashArray: props.series.map((_, i) => i === 1 ? 4 : 0),
   },
-  stroke: { curve: 'smooth', width: 2 },
   dataLabels: { enabled: false },
+  markers: { size: 0, hover: { size: 4 } },
   grid: {
     borderColor: '#252C3D',
     strokeDashArray: 3,
     xaxis: { lines: { show: false } },
-    yaxis: { lines: { show: true } },
-    padding: { left: 0, right: 0 },
   },
   xaxis: {
-    type: 'category',
+    categories: props.categories,
     labels: {
+      rotate: -30,
       style: { colors: '#8B92A5', fontFamily: 'DM Mono, monospace', fontSize: '10px' },
     },
     axisBorder: { show: false },
@@ -68,13 +59,14 @@ const chartOptions = computed(() => ({
       formatter: (v: number): string => props.unit ? String(Math.round(v)) + props.unit : String(Math.round(v)),
     },
   },
+  legend: {
+    labels: { colors: '#8B92A5' },
+    fontFamily: 'DM Mono, monospace',
+    fontSize: '11px',
+  },
   tooltip: {
     theme: 'dark',
     style: { fontFamily: 'DM Mono, monospace', fontSize: '12px' },
-    y: {
-      formatter: (v: number) => props.unit ? `${v} ${props.unit}` : String(v),
-    },
   },
-  markers: { size: 0, hover: { size: 4 } },
 }))
 </script>

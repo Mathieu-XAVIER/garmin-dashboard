@@ -100,3 +100,6 @@ export const useGarminStore = defineStore('garmin', () => {
     triggerSync, loadDashboard,
   }
 })
+
+// ── Profil ────────────────────────────────────────────────────────────────
+// (ajouté séparément dans profileStore)

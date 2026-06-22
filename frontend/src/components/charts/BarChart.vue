@@ -49,7 +49,7 @@ const chartOptions = computed(() => ({
   yaxis: {
     labels: {
       style: { colors: '#8B92A5', fontFamily: 'DM Mono, monospace', fontSize: '10px' },
-      formatter: (v: number) => props.unit ? `${Math.round(v)}${props.unit}` : Math.round(v).toString(),
+      formatter: (v: number): string => props.unit ? String(Math.round(v)) + props.unit : String(Math.round(v)),
     },
   },
   tooltip: {
