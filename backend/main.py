@@ -16,6 +16,7 @@ from scheduler import sync_all, setup_scheduler
 from routes.activities import router as activities_router
 from routes.health import router as health_router
 from routes.stats import router as stats_router
+from routes.profile import router as profile_router
 
 load_dotenv()
 logging.basicConfig(
@@ -63,6 +64,7 @@ app.add_middleware(
 app.include_router(activities_router)
 app.include_router(health_router)
 app.include_router(stats_router)
+app.include_router(profile_router)
 
 
 @app.get("/")
