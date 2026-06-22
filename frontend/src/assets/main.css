@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap');
+
+/* ── Tokens ─────────────────────────────────────────────── */
+:root {
+  --bg:          #0D0F14;
+  --surface:     #161A23;
+  --surface-2:   #1E2330;
+  --border:      #252C3D;
+  --teal:        #00D4AA;
+  --teal-dim:    rgba(0, 212, 170, 0.12);
+  --orange:      #FF6B35;
+  --orange-dim:  rgba(255, 107, 53, 0.12);
+  --purple:      #7C6FCD;
+  --text:        #E8EAF0;
+  --text-muted:  #8B92A5;
+  --text-dim:    #4A5168;
+  --mono:        'DM Mono', monospace;
+  --sans:        'Inter', sans-serif;
+  --radius:      8px;
+  --radius-lg:   12px;
+}
+
+/* ── Reset ───────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 14px; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+/* ── Utils ───────────────────────────────────────────────── */
+.mono { font-family: var(--mono); }
+.text-teal { color: var(--teal); }
+.text-orange { color: var(--orange); }
+.text-muted { color: var(--text-muted); }
