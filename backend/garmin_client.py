@@ -3,30 +3,53 @@ garmin_client.py — Wrapper autour de python-garminconnect.
 """
 
 import logging
+import time
 from datetime import date, timedelta
-from garminconnect import Garmin, GarminConnectAuthenticationError
+from garminconnect import (
+    Garmin,
+    GarminConnectAuthenticationError,
+    GarminConnectTooManyRequestsError,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class GarminClient:
+    CONNECT_COOLDOWN = 300
+
     def __init__(self, email: str, password: str):
         self.email = email
         self.password = password
         self._client = None
+        self._last_failed_attempt = 0.0
 
     def connect(self):
         try:
             self._client = Garmin(self.email, self.password)
             self._client.login()
             logger.info("Connecté à Garmin Connect ✓")
+            return True
         except GarminConnectAuthenticationError as e:
             logger.error(f"Erreur d'authentification Garmin : {e}")
             raise
+        except GarminConnectTooManyRequestsError as e:
+            logger.warning(f"Rate limit Garmin — nouvelle tentative dans {self.CONNECT_COOLDOWN}s : {e}")
+            self._client = None
+            self._last_failed_attempt = time.time()
+            return False
+        except Exception as e:
+            logger.warning(f"Connexion Garmin échouée (sera retentée) : {e}")
+            self._client = None
+            self._last_failed_attempt = time.time()
+            return False
 
     @property
     def client(self):
         if self._client is None:
+            elapsed = time.time() - self._last_failed_attempt
+            if elapsed < self.CONNECT_COOLDOWN:
+                logger.debug(f"Cooldown actif, prochaine tentative dans {self.CONNECT_COOLDOWN - elapsed:.0f}s")
+                return None
             self.connect()
         return self._client
 

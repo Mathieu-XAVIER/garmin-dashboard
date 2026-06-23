@@ -3,7 +3,7 @@ scheduler.py — Synchronisation automatique des données Garmin.
 """
 
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.orm import Session
@@ -15,12 +15,26 @@ logger = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
 
 
+def _parse_start_time(value):
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return datetime.fromtimestamp(value / 1000)
+    if isinstance(value, str):
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"):
+            try:
+                return datetime.strptime(value, fmt)
+            except ValueError:
+                continue
+    return None
+
+
 def _parse_activity(raw):
     return {
         "garmin_id": str(raw.get("activityId", "")),
         "activity_type": raw.get("activityType", {}).get("typeKey", ""),
         "name": raw.get("activityName", ""),
-        "start_time": raw.get("startTimeLocal"),
+        "start_time": _parse_start_time(raw.get("startTimeLocal")),
         "duration_seconds": raw.get("duration"),
         "distance_meters": raw.get("distance"),
         "calories": raw.get("calories"),
@@ -57,14 +71,20 @@ def _parse_daily_health(raw, target_date):
     }
 
 
+def _ts_to_datetime(ts):
+    if ts is None:
+        return None
+    return datetime.fromtimestamp(ts / 1000)
+
+
 def _parse_sleep(raw, target_date):
     daily = raw.get("dailySleepDTO")
     if not daily:
         return None
     return {
         "date": target_date,
-        "sleep_start": daily.get("sleepStartTimestampLocal"),
-        "sleep_end": daily.get("sleepEndTimestampLocal"),
+        "sleep_start": _ts_to_datetime(daily.get("sleepStartTimestampLocal")),
+        "sleep_end": _ts_to_datetime(daily.get("sleepEndTimestampLocal")),
         "duration_seconds": daily.get("sleepTimeSeconds"),
         "deep_sleep_seconds": daily.get("deepSleepSeconds"),
         "light_sleep_seconds": daily.get("lightSleepSeconds"),
