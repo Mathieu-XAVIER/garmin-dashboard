@@ -36,10 +36,13 @@ async def lifespan(app: FastAPI):
     logger.info("Démarrage de l'application…")
     init_db()
     logger.info("Base de données initialisée ✓")
-    garmin_client.connect()
-    initial_days = int(os.getenv("INITIAL_SYNC_DAYS", "90"))
-    logger.info(f"Synchro initiale sur {initial_days} jours…")
-    await sync_all(garmin_client, days_back=initial_days)
+    connected = garmin_client.connect()
+    if connected:
+        initial_days = int(os.getenv("INITIAL_SYNC_DAYS", "90"))
+        logger.info(f"Synchro initiale sur {initial_days} jours…")
+        await sync_all(garmin_client, days_back=initial_days)
+    else:
+        logger.warning("API démarrée sans connexion Garmin — utilisez POST /sync pour relancer")
     interval = int(os.getenv("SYNC_INTERVAL_MINUTES", "60"))
     setup_scheduler(garmin_client, interval_minutes=interval)
     yield
