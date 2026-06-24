@@ -17,10 +17,10 @@ def global_summary(db: Session = Depends(get_db)):
     total_activities = db.query(Activity).count()
     total_distance = db.query(func.sum(Activity.distance_meters)).scalar() or 0
     total_calories_sport = db.query(func.sum(Activity.calories)).scalar() or 0
-    last_rhr = db.query(DailyHealth.resting_heart_rate).filter(DailyHealth.resting_heart_rate.isnot(None)).order_by(desc(DailyHealth.date)).scalar()
-    last_hrv = db.query(HRV.last_night_avg).filter(HRV.last_night_avg.isnot(None)).order_by(desc(HRV.date)).scalar()
-    last_sleep_score = db.query(Sleep.sleep_score).filter(Sleep.sleep_score.isnot(None)).order_by(desc(Sleep.date)).scalar()
-    last_vo2max = db.query(Activity.vo2max).filter(Activity.vo2max.isnot(None)).order_by(desc(Activity.start_time)).scalar()
+    last_rhr = db.query(DailyHealth.resting_heart_rate).filter(DailyHealth.resting_heart_rate.isnot(None)).order_by(desc(DailyHealth.date)).limit(1).scalar()
+    last_hrv = db.query(HRV.last_night_avg).filter(HRV.last_night_avg.isnot(None)).order_by(desc(HRV.date)).limit(1).scalar()
+    last_sleep_score = db.query(Sleep.sleep_score).filter(Sleep.sleep_score.isnot(None)).order_by(desc(Sleep.date)).limit(1).scalar()
+    last_vo2max = db.query(Activity.vo2max).filter(Activity.vo2max.isnot(None)).order_by(desc(Activity.start_time)).limit(1).scalar()
     return {
         "total_activities": total_activities,
         "total_distance_km": round(total_distance / 1000, 1) if total_distance else 0,

@@ -160,7 +160,7 @@ onMounted(() => store.fetchDailyHealth(30))
 </script>
 
 <style scoped>
-.view { padding: 32px; max-width: 1200px; }
+.view { padding: 32px 40px; }
 .view-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; }
 .view-title { font-size: 22px; font-weight: 600; }
 .view-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }

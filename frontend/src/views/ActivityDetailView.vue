@@ -238,7 +238,7 @@ function formatDate(dt: string): string {
 </script>
 
 <style scoped>
-.view { padding: 32px; max-width: 960px; }
+.view { padding: 32px 40px; }
 
 .view-header { margin-bottom: 24px; display: flex; align-items: center; gap: 16px; }
 .back-btn {
