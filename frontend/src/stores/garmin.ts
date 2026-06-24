@@ -74,7 +74,7 @@ export const useGarminStore = defineStore('garmin', () => {
     loading.value = true
     error.value = null
     try {
-      await Promise.all([
+      const results = await Promise.allSettled([
         fetchSummary(),
         fetchWeeklyStats(),
         fetchTrainingLoad(),
@@ -83,6 +83,10 @@ export const useGarminStore = defineStore('garmin', () => {
         fetchSleepHistory(14),
         fetchHrvHistory(14),
       ])
+      const failures = results.filter(r => r.status === 'rejected')
+      if (failures.length) {
+        error.value = `${failures.length} requête(s) en erreur`
+      }
       lastSync.value = new Date()
     } catch (e: any) {
       error.value = e.message ?? 'Erreur de connexion à l\'API'

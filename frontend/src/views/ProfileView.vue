@@ -234,7 +234,7 @@ onMounted(() => store.fetchProfile())
 </script>
 
 <style scoped>
-.view { padding: 32px; max-width: 1200px; }
+.view { padding: 32px 40px; }
 .view-header { margin-bottom: 28px; }
 .view-title { font-size: 22px; font-weight: 600; }
 .view-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
@@ -285,6 +285,6 @@ onMounted(() => store.fetchProfile())
   .two-col { grid-template-columns: 1fr; }
   .fitness-hero { grid-template-columns: 1fr; }
   .fitness-metrics { grid-template-columns: 1fr 1fr; }
-  .view { padding: 20px; }
+  .view { padding: 20px 16px; }
 }
 </style>

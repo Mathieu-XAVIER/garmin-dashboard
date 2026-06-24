@@ -17,7 +17,7 @@
         <MetricCard label="Body Battery max" :value="store.todayHealth?.body_battery_high"  sub="Niveau max du jour" accent="teal" />
         <MetricCard label="FC au repos"      :value="store.todayHealth?.resting_heart_rate" unit="bpm"  accent="orange" />
         <MetricCard label="Stress moyen"     :value="store.todayHealth?.avg_stress"         sub="/ 100" accent="none" />
-        <MetricCard label="Calories actives" :value="store.todayHealth?.calories_active"    unit="kcal" accent="none" />
+        <MetricCard label="Calories"          :value="store.todayHealth?.calories_total"     unit="kcal" accent="none" />
         <MetricCard label="VO2 max"          :value="store.summary?.latest_vo2max"          :decimals="1" sub="Dernière activité" accent="purple" />
       </div>
     </section>
@@ -113,7 +113,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.view { padding: 32px; max-width: 1200px; }
+.view { padding: 32px 40px; }
 .view-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 32px; }
 .view-title { font-size: 22px; font-weight: 600; color: var(--text); }
 .view-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; text-transform: capitalize; }
@@ -121,7 +121,7 @@ onMounted(() => {
 .section { margin-bottom: 32px; }
 .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); font-weight: 500; margin-bottom: 14px; }
 .section-header-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
 .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 12px 8px; }
 .card-list { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; padding: 4px 0; }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
@@ -129,5 +129,5 @@ onMounted(() => {
 .status-good    { background: var(--teal-dim); color: var(--teal); }
 .status-warn    { background: var(--orange-dim); color: var(--orange); }
 .status-neutral { background: var(--surface-2); color: var(--text-muted); }
-@media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } .view { padding: 20px; } }
+@media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } .view { padding: 20px 16px; } }
 </style>
