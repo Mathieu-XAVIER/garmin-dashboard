@@ -101,6 +101,20 @@ class HRV(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class PrepExerciseLog(Base):
+    __tablename__ = "prep_exercise_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(String, nullable=False, index=True)
+    exercise_type = Column(String, nullable=False)  # pompes, squats, abdos
+    reps = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("date", "exercise_type", name="uq_prep_date_type"),
+    )
+
+
 def get_db():
     db = SessionLocal()
     try:
