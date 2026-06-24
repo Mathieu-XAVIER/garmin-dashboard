@@ -12,6 +12,7 @@
         <RouterLink to="/health"     class="nav-item" active-class="active"><span class="nav-icon">♡</span><span>Santé</span></RouterLink>
         <RouterLink to="/sleep"      class="nav-item" active-class="active"><span class="nav-icon">◐</span><span>Sommeil</span></RouterLink>
         <RouterLink to="/profile"    class="nav-item" active-class="active"><span class="nav-icon">◈</span><span>Profil</span></RouterLink>
+        <RouterLink to="/handball"   class="nav-item" active-class="active"><span class="nav-icon">◉</span><span>Prépa Hand</span></RouterLink>
       </nav>
 
       <div class="sidebar-footer">
@@ -39,7 +40,12 @@ const syncing = ref(false)
 
 async function handleSync() {
   syncing.value = true
-  try { await store.triggerSync(7) } finally { syncing.value = false }
+  try {
+    await store.triggerSync(7)
+    await store.loadDashboard()
+  } finally {
+    syncing.value = false
+  }
 }
 
 function timeAgo(date: Date): string {
@@ -53,7 +59,7 @@ function timeAgo(date: Date): string {
 <style scoped>
 #app-shell { display: flex; min-height: 100vh; }
 
-.sidebar { width: 220px; min-height: 100vh; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 0; position: sticky; top: 0; flex-shrink: 0; }
+.sidebar { width: 220px; height: 100vh; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 0; position: sticky; top: 0; flex-shrink: 0; overflow-y: auto; }
 .sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 0 20px 28px; border-bottom: 1px solid var(--border); }
 .logo-icon { font-size: 22px; color: var(--teal); line-height: 1; }
 .logo-text { font-family: var(--sans); font-size: 11px; color: var(--text-muted); line-height: 1.4; text-transform: uppercase; letter-spacing: 0.05em; }
