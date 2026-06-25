@@ -7,12 +7,21 @@
       </div>
 
       <nav class="sidebar-nav">
-        <RouterLink to="/"           class="nav-item" active-class="active"><span class="nav-icon">▣</span><span>Dashboard</span></RouterLink>
-        <RouterLink to="/activities" class="nav-item" active-class="active"><span class="nav-icon">◎</span><span>Activités</span></RouterLink>
-        <RouterLink to="/health"     class="nav-item" active-class="active"><span class="nav-icon">♡</span><span>Santé</span></RouterLink>
-        <RouterLink to="/sleep"      class="nav-item" active-class="active"><span class="nav-icon">◐</span><span>Sommeil</span></RouterLink>
-        <RouterLink to="/profile"    class="nav-item" active-class="active"><span class="nav-icon">◈</span><span>Profil</span></RouterLink>
-        <RouterLink to="/handball"   class="nav-item" active-class="active"><span class="nav-icon">◉</span><span>Prépa Hand</span></RouterLink>
+        <RouterLink v-for="tab in navStore.nativeTabs" :key="tab.id"
+          :to="tab.to" class="nav-item" active-class="active">
+          <span class="nav-icon">{{ tab.icon }}</span><span>{{ tab.label }}</span>
+        </RouterLink>
+
+        <div v-if="navStore.customDashboards.length" class="nav-separator"></div>
+
+        <RouterLink v-for="dash in navStore.customDashboards" :key="dash.slug"
+          :to="`/d/${dash.slug}`" class="nav-item" active-class="active">
+          <span class="nav-icon">{{ dash.icon || '◇' }}</span><span>{{ dash.name }}</span>
+        </RouterLink>
+
+        <button class="nav-item nav-add" @click="navStore.settingsOpen = true">
+          <span class="nav-icon">+</span><span>Personnaliser</span>
+        </button>
       </nav>
 
       <div class="sidebar-footer">
@@ -25,6 +34,8 @@
       </div>
     </aside>
 
+    <NavSettings v-if="navStore.settingsOpen" @close="navStore.settingsOpen = false" />
+
     <main class="main-content" :class="{ 'full-width': !showSidebar }">
       <RouterView />
     </main>
@@ -36,9 +47,12 @@ import { ref, computed } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { useGarminStore } from './stores/garmin'
 import { useAuthStore } from './stores/auth'
+import { useNavStore } from './stores/nav'
+import NavSettings from './components/sidebar/NavSettings.vue'
 
 const store = useGarminStore()
 const authStore = useAuthStore()
+const navStore = useNavStore()
 const route = useRoute()
 const syncing = ref(false)
 
@@ -80,6 +94,10 @@ function timeAgo(date: Date): string {
 .nav-item:hover { background: var(--surface-2); color: var(--text); }
 .nav-item.active { background: var(--teal-dim); color: var(--teal); }
 .nav-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+
+.nav-separator { height: 1px; background: var(--border); margin: 8px 0; }
+.nav-add { color: var(--text-dim); font-size: 13px; border: none; background: none; cursor: pointer; width: 100%; text-align: left; }
+.nav-add:hover { background: var(--surface-2); color: var(--teal); }
 
 .sidebar-footer { padding: 16px 12px 0; border-top: 1px solid var(--border); }
 .sync-btn { width: 100%; padding: 9px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-muted); font-family: var(--sans); font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: border-color 0.15s, color 0.15s; }

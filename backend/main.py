@@ -20,8 +20,9 @@ from routes.activities import router as activities_router
 from routes.health import router as health_router
 from routes.stats import router as stats_router
 from routes.profile import router as profile_router
-from routes.handball import router as handball_router
 from routes.auth import router as auth_router
+from routes.dashboards import router as dashboards_router
+from routes.preferences import router as preferences_router
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
@@ -62,7 +63,8 @@ app.include_router(activities_router)
 app.include_router(health_router)
 app.include_router(stats_router)
 app.include_router(profile_router)
-app.include_router(handball_router)
+app.include_router(dashboards_router)
+app.include_router(preferences_router)
 
 
 @app.get("/")

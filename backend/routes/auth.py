@@ -11,7 +11,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from database import get_db, User
+from database import get_db, User, CustomDashboard
 from auth import (
     verify_password,
     get_password_hash,
@@ -72,13 +72,24 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
 
 
 @router.get("/me")
-def me(current_user: User = Depends(get_current_user)):
+def me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    dashboards = (
+        db.query(CustomDashboard)
+        .filter_by(user_id=current_user.id)
+        .order_by(CustomDashboard.position)
+        .all()
+    )
     return {
         "id": current_user.id,
         "email": current_user.email,
         "has_garmin_credentials": bool(current_user.garmin_email and current_user.garmin_password_encrypted),
         "garmin_email": current_user.garmin_email,
         "created_at": current_user.created_at,
+        "nav_preferences": current_user.nav_preferences,
+        "custom_dashboards": [
+            {"id": d.id, "name": d.name, "slug": d.slug, "icon": d.icon, "position": d.position}
+            for d in dashboards
+        ],
     }
 
 
