@@ -144,4 +144,13 @@ async function handleSave() {
 .btn-save { padding: 8px 20px; background: var(--teal-dim); border: 1px solid var(--teal); border-radius: var(--radius); color: var(--teal); font-size: 13px; font-weight: 500; cursor: pointer; }
 .btn-save:hover:not(:disabled) { background: rgba(0, 212, 170, 0.2); }
 .btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (max-width: 768px) {
+  .modal-overlay { align-items: flex-end; }
+  .modal-panel { width: 100%; border-radius: var(--radius-lg) var(--radius-lg) 0 0; max-height: 90vh; }
+  .modal-body { padding: 16px; }
+  .modal-header { padding: 16px; }
+  .modal-footer { padding: 12px 16px; }
+  .form-row { flex-direction: column; gap: 12px; }
+}
 </style>

@@ -103,4 +103,8 @@ function onDashboardCreated(slug: string) {
 
 .nsp-create-btn { padding: 10px; border: 1px dashed var(--border); border-radius: var(--radius); background: transparent; color: var(--text-muted); font-family: var(--sans); font-size: 13px; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
 .nsp-create-btn:hover { border-color: var(--teal); color: var(--teal); }
+
+@media (max-width: 768px) {
+  .nav-settings-panel { width: 100%; }
+}
 </style>

@@ -326,11 +326,24 @@ onMounted(() => store.fetchPrep())
 .error-state { padding: 64px; text-align: center; color: var(--text-muted); }
 
 @media (max-width: 900px) {
-  .view { padding: 20px 16px; }
   .view-header { flex-direction: column; gap: 12px; }
   .player-badge { align-items: flex-start; }
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .weeks-grid { grid-template-columns: 1fr; }
   .input-row { flex-direction: column; }
+}
+@media (max-width: 768px) {
+  .view { padding: 16px 12px; }
+  .view-title { font-size: 20px; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .obj-card { padding: 14px; }
+  .obj-progress-ring-wrap { width: 80px; height: 80px; }
+  .obj-ring { width: 80px; height: 80px; }
+  .obj-val { font-size: 16px; }
+  .global-progress-card { padding: 16px; }
+  .input-card { padding: 16px; }
+  .week-card { padding: 12px; }
+  .week-metrics { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .section { margin-bottom: 20px; }
 }
 </style>

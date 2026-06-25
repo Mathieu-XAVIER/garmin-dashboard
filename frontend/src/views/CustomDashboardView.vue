@@ -211,9 +211,17 @@ async function onDashboardSaved(newSlug?: string) {
 .error-state { padding: 64px; text-align: center; color: var(--text-muted); }
 
 @media (max-width: 900px) {
-  .view { padding: 20px 16px; }
   .widget-grid { grid-template-columns: repeat(2, 1fr); }
   .widget-cell.width-full { grid-column: span 2; }
   .widget-cell.width-quarter { grid-column: span 1; }
+}
+@media (max-width: 768px) {
+  .view { padding: 16px 12px; }
+  .view-title { font-size: 20px; }
+  .widget-grid { grid-template-columns: 1fr; }
+  .widget-cell.width-full,
+  .widget-cell.width-half,
+  .widget-cell.width-quarter { grid-column: span 1; }
+  .add-widget-area { flex-direction: column; }
 }
 </style>
