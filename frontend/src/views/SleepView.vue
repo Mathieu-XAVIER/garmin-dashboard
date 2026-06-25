@@ -144,22 +144,22 @@ onMounted(() => store.fetchSleepHistory(30))
 <style scoped>
 .view { padding: 32px 40px; }
 .view-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; }
-.view-title { font-size: 22px; font-weight: 600; }
-.view-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.view-title { font-size: 24px; font-weight: 600; }
+.view-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
 
 .last-night { display: flex; align-items: baseline; gap: 6px; padding: 10px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); }
-.ln-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.ln-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
 .ln-score { font-size: 32px; font-family: var(--mono); font-weight: 500; }
-.ln-unit  { font-size: 12px; color: var(--text-muted); }
+.ln-unit  { font-size: 13px; color: var(--text-muted); }
 .text-teal { color: var(--teal); }
 .text-orange { color: var(--orange); }
 .text-muted { color: var(--text-muted); }
 
 .section { margin-bottom: 28px; }
-.section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); font-weight: 500; margin-bottom: 14px; }
+.section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 600; margin-bottom: 14px; }
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
 .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 12px 8px; }
-.chart-empty { height: 140px; display: flex; align-items: center; justify-content: center; color: var(--text-dim); font-size: 12px; font-family: var(--mono); }
+.chart-empty { height: 140px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 13px; font-family: var(--mono); }
 
 .sleep-table { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
 .table-header, .table-row {
@@ -167,8 +167,8 @@ onMounted(() => store.fetchSleepHistory(30))
   grid-template-columns: 1fr 0.7fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr;
   gap: 8px; padding: 10px 16px; align-items: center;
 }
-.table-header { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); border-bottom: 1px solid var(--border); }
-.table-row { font-size: 12px; border-bottom: 1px solid var(--border); transition: background 0.12s; }
+.table-header { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); border-bottom: 1px solid var(--border); font-weight: 600; }
+.table-row { font-size: 13px; border-bottom: 1px solid var(--border); transition: background 0.12s; }
 .table-row:last-child { border-bottom: none; }
 .table-row:hover { background: var(--surface-2); }
 .mono { font-family: var(--mono); }

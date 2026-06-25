@@ -54,9 +54,9 @@ const displayValue = computed(() => {
 .metric-card.purple { border-left: 3px solid var(--purple); }
 
 .card-label {
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
   font-weight: 500;
 }
@@ -77,18 +77,18 @@ const displayValue = computed(() => {
 }
 
 .value-unit {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-muted);
   font-family: var(--mono);
 }
 
 .card-sub {
-  font-size: 11px;
-  color: var(--text-dim);
+  font-size: 12px;
+  color: var(--text-muted);
   margin-top: 2px;
 }
 
-.card-trend { margin-top: 6px; font-size: 11px; font-family: var(--mono); }
+.card-trend { margin-top: 6px; font-size: 12px; font-family: var(--mono); }
 .up { color: var(--teal); }
 .down { color: var(--orange); }
 </style>
