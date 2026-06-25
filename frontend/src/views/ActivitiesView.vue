@@ -51,7 +51,7 @@
         </div>
         <EmptyState v-if="!filteredActivities.length" message="Aucune activité" />
         <RouterLink
-          v-for="act in filteredActivities"
+          v-for="act in paginatedActivities"
           :key="act.garmin_id"
           :to="`/activities/${act.garmin_id}`"
           class="table-row"
@@ -70,12 +70,17 @@
           <span class="chevron">›</span>
         </RouterLink>
       </div>
+      <div v-if="totalPages > 1" class="pagination">
+        <button class="page-btn" :disabled="page === 1" @click="page--">‹ Précédent</button>
+        <span class="page-info mono">{{ page }} / {{ totalPages }}</span>
+        <button class="page-btn" :disabled="page === totalPages" @click="page++">Suivant ›</button>
+      </div>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useGarminStore } from '../stores/garmin'
 import MetricCard     from '../components/cards/MetricCard.vue'
@@ -86,9 +91,14 @@ import EmptyState     from '../components/EmptyState.vue'
 const store = useGarminStore()
 const loading = ref(true)
 const selectedType = ref<string | null>(null)
+const page = ref(1)
+const perPage = 15
 
 const activityTypes     = computed(() => [...new Set(store.activities.map(a => a.activity_type).filter(Boolean))])
 const filteredActivities = computed(() => selectedType.value ? store.activities.filter(a => a.activity_type === selectedType.value) : store.activities)
+watch(selectedType, () => { page.value = 1 })
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredActivities.value.length / perPage)))
+const paginatedActivities = computed(() => filteredActivities.value.slice((page.value - 1) * perPage, page.value * perPage))
 const totalDistance     = computed(() => filteredActivities.value.reduce((s, a) => s + (a.distance_meters ?? 0), 0) / 1000)
 const avgHR             = computed(() => { const a = filteredActivities.value.filter(a => a.avg_heart_rate); return a.length ? Math.round(a.reduce((s, a) => s + a.avg_heart_rate, 0) / a.length) : null })
 const totalLoad         = computed(() => filteredActivities.value.reduce((s, a) => s + (a.training_load ?? 0), 0))
@@ -107,7 +117,7 @@ function pace(act: any) {
 }
 
 onMounted(async () => {
-  await Promise.all([store.fetchActivities(50), store.fetchTrainingLoad(42)])
+  await Promise.all([store.fetchActivities(200), store.fetchTrainingLoad(42)])
   loading.value = false
 })
 </script>
@@ -139,4 +149,9 @@ onMounted(async () => {
 .muted { color: var(--text-muted); }
 .text-orange { color: var(--orange); }
 .chevron { font-size: 16px; color: var(--text-dim); transition: color 0.15s; }
+.pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 14px; }
+.page-btn { padding: 6px 14px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font-family: var(--mono); font-size: 12px; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+.page-btn:hover:not(:disabled) { border-color: var(--teal); color: var(--teal); }
+.page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.page-info { font-size: 12px; color: var(--text-muted); }
 </style>

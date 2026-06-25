@@ -1,5 +1,5 @@
 """
-scheduler.py — Synchronisation automatique des données Garmin.
+scheduler.py — Synchronisation automatique des données Garmin (multi-utilisateurs).
 """
 
 import logging
@@ -8,7 +8,7 @@ from datetime import date, datetime, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.orm import Session
 
-from database import SessionLocal, Activity, DailyHealth, Sleep, HRV
+from database import SessionLocal, Activity, DailyHealth, Sleep, HRV, User
 from garmin_client import GarminClient
 
 logger = logging.getLogger(__name__)
@@ -29,8 +29,9 @@ def _parse_start_time(value):
     return None
 
 
-def _parse_activity(raw):
+def _parse_activity(raw, user_id: int):
     return {
+        "user_id": user_id,
         "garmin_id": str(raw.get("activityId", "")),
         "activity_type": raw.get("activityType", {}).get("typeKey", ""),
         "name": raw.get("activityName", ""),
@@ -51,8 +52,9 @@ def _parse_activity(raw):
     }
 
 
-def _parse_daily_health(raw, target_date):
+def _parse_daily_health(raw, target_date, user_id: int):
     return {
+        "user_id": user_id,
         "date": target_date,
         "steps": raw.get("totalSteps"),
         "total_distance_meters": raw.get("totalDistanceMeters"),
@@ -77,11 +79,12 @@ def _ts_to_datetime(ts):
     return datetime.fromtimestamp(ts / 1000)
 
 
-def _parse_sleep(raw, target_date):
+def _parse_sleep(raw, target_date, user_id: int):
     daily = raw.get("dailySleepDTO")
     if not daily:
         return None
     return {
+        "user_id": user_id,
         "date": target_date,
         "sleep_start": _ts_to_datetime(daily.get("sleepStartTimestampLocal")),
         "sleep_end": _ts_to_datetime(daily.get("sleepEndTimestampLocal")),
@@ -98,11 +101,12 @@ def _parse_sleep(raw, target_date):
     }
 
 
-def _parse_hrv(raw, target_date):
+def _parse_hrv(raw, target_date, user_id: int):
     summary = raw.get("hrvSummary")
     if not summary:
         return None
     return {
+        "user_id": user_id,
         "date": target_date,
         "weekly_avg": summary.get("weeklyAvg"),
         "last_night_avg": summary.get("lastNight"),
@@ -123,81 +127,88 @@ def _upsert(db, Model, filter_by, data):
         db.add(Model(**data))
 
 
-async def sync_all(client: GarminClient, days_back: int = 7):
-    db = SessionLocal()
+async def sync_user(client: GarminClient, user_id: int, db: Session, days_back: int = 7):
     summary = {"activities": 0, "daily_health": 0, "sleep": 0, "hrv": 0, "errors": []}
+    today = date.today()
+    start = today - timedelta(days=days_back)
 
     try:
-        today = date.today()
-        start = today - timedelta(days=days_back)
-
-        # Activités
-        try:
-            activities = client.get_activities_by_date(start, today)
-            for raw in activities:
-                data = _parse_activity(raw)
-                if data["garmin_id"]:
-                    _upsert(db, Activity, {"garmin_id": data["garmin_id"]}, data)
-                    summary["activities"] += 1
-            db.commit()
-            logger.info(f"Activités : {summary['activities']} synchronisées")
-        except Exception as e:
-            summary["errors"].append(f"activities: {e}")
-            db.rollback()
-
-        # Santé jour par jour
-        current = start
-        while current <= today:
-            date_str = current.isoformat()
-
-            try:
-                raw = client.get_stats(current)
-                if raw:
-                    _upsert(db, DailyHealth, {"date": date_str}, _parse_daily_health(raw, date_str))
-                    summary["daily_health"] += 1
-            except Exception as e:
-                summary["errors"].append(f"daily_health {date_str}: {e}")
-
-            try:
-                raw = client.get_sleep(current)
-                if raw:
-                    data = _parse_sleep(raw, date_str)
-                    if data:
-                        _upsert(db, Sleep, {"date": date_str}, data)
-                        summary["sleep"] += 1
-            except Exception as e:
-                summary["errors"].append(f"sleep {date_str}: {e}")
-
-            try:
-                raw = client.get_hrv(current)
-                if raw:
-                    data = _parse_hrv(raw, date_str)
-                    if data:
-                        _upsert(db, HRV, {"date": date_str}, data)
-                        summary["hrv"] += 1
-            except Exception as e:
-                summary["errors"].append(f"hrv {date_str}: {e}")
-
-            db.commit()
-            current += timedelta(days=1)
-
-        logger.info(f"Synchro terminée : {summary}")
-        return summary
-
+        activities = client.get_activities_by_date(start, today)
+        for raw in activities:
+            data = _parse_activity(raw, user_id)
+            if data["garmin_id"]:
+                _upsert(db, Activity, {"garmin_id": data["garmin_id"], "user_id": user_id}, data)
+                summary["activities"] += 1
+        db.commit()
+        logger.info(f"[user={user_id}] Activités : {summary['activities']} synchronisées")
     except Exception as e:
+        summary["errors"].append(f"activities: {e}")
         db.rollback()
-        logger.error(f"Erreur synchro globale : {e}")
-        raise
+
+    current = start
+    while current <= today:
+        date_str = current.isoformat()
+
+        try:
+            raw = client.get_stats(current)
+            if raw:
+                _upsert(db, DailyHealth, {"date": date_str, "user_id": user_id},
+                        _parse_daily_health(raw, date_str, user_id))
+                summary["daily_health"] += 1
+        except Exception as e:
+            summary["errors"].append(f"daily_health {date_str}: {e}")
+
+        try:
+            raw = client.get_sleep(current)
+            if raw:
+                data = _parse_sleep(raw, date_str, user_id)
+                if data:
+                    _upsert(db, Sleep, {"date": date_str, "user_id": user_id}, data)
+                    summary["sleep"] += 1
+        except Exception as e:
+            summary["errors"].append(f"sleep {date_str}: {e}")
+
+        try:
+            raw = client.get_hrv(current)
+            if raw:
+                data = _parse_hrv(raw, date_str, user_id)
+                if data:
+                    _upsert(db, HRV, {"date": date_str, "user_id": user_id}, data)
+                    summary["hrv"] += 1
+        except Exception as e:
+            summary["errors"].append(f"hrv {date_str}: {e}")
+
+        db.commit()
+        current += timedelta(days=1)
+
+    logger.info(f"[user={user_id}] Synchro terminée : {summary}")
+    return summary
+
+
+async def sync_all_users(manager, days_back: int = 2):
+    db = SessionLocal()
+    try:
+        users = db.query(User).filter(
+            User.garmin_email.isnot(None),
+            User.garmin_password_encrypted.isnot(None),
+        ).all()
+        for user in users:
+            try:
+                client = manager.get_client(user)
+                if client and client.client:
+                    await sync_user(client, user.id, db, days_back)
+            except Exception as e:
+                logger.error(f"Erreur synchro utilisateur {user.id}: {e}")
     finally:
         db.close()
 
 
-def setup_scheduler(client: GarminClient, interval_minutes: int = 60):
+def setup_scheduler(manager, interval_minutes: int = 60):
     scheduler.add_job(
-        sync_all,
+        sync_all_users,
         "interval",
         minutes=interval_minutes,
-        args=[client, 2],
+        args=[manager, 2],
         id="sync_garmin",
         replace_existing=True,
     )

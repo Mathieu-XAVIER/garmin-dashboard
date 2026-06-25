@@ -70,7 +70,7 @@
           <span>Éveillé</span>
           <span>SpO2</span>
         </div>
-        <div v-for="s in store.sleepHistory" :key="s.date" class="table-row">
+        <div v-for="s in paginatedSleep" :key="s.date" class="table-row">
           <span class="mono muted">{{ s.date }}</span>
           <span class="mono" :class="scoreColor(s.sleep_score)">{{ s.sleep_score ?? '—' }}</span>
           <span class="mono">{{ fmtSec(s.duration_seconds) }}</span>
@@ -81,18 +81,28 @@
           <span class="mono">{{ s.avg_spo2 ? s.avg_spo2.toFixed(1) + '%' : '—' }}</span>
         </div>
       </div>
+      <div v-if="sleepTotalPages > 1" class="pagination">
+        <button class="page-btn" :disabled="sleepPage === 1" @click="sleepPage--">‹ Précédent</button>
+        <span class="page-info mono">{{ sleepPage }} / {{ sleepTotalPages }}</span>
+        <button class="page-btn" :disabled="sleepPage === sleepTotalPages" @click="sleepPage++">Suivant ›</button>
+      </div>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useGarminStore } from '../stores/garmin'
 import MetricCard from '../components/cards/MetricCard.vue'
 import AreaChart from '../components/charts/AreaChart.vue'
 import BarChart from '../components/charts/BarChart.vue'
 
 const store = useGarminStore()
+const sleepPage = ref(1)
+const sleepPerPage = 15
+
+const sleepTotalPages = computed(() => Math.max(1, Math.ceil(store.sleepHistory.length / sleepPerPage)))
+const paginatedSleep = computed(() => store.sleepHistory.slice((sleepPage.value - 1) * sleepPerPage, sleepPage.value * sleepPerPage))
 
 const reversed = computed(() => [...store.sleepHistory].reverse())
 
@@ -176,4 +186,9 @@ onMounted(() => store.fetchSleepHistory(30))
 .deep  { color: var(--purple); }
 .rem   { color: var(--teal); }
 .light { color: #3B5B8F; }
+.pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 14px; }
+.page-btn { padding: 6px 14px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font-family: var(--mono); font-size: 12px; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+.page-btn:hover:not(:disabled) { border-color: var(--teal); color: var(--teal); }
+.page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.page-info { font-size: 12px; color: var(--text-muted); }
 </style>

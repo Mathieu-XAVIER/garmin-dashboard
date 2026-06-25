@@ -147,7 +147,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
-import axios from 'axios'
+import api from '@/api'
 import MetricCard from '../components/cards/MetricCard.vue'
 import DonutChart from '../components/charts/DonutChart.vue'
 import SkeletonLoader from '../components/SkeletonLoader.vue'
@@ -160,7 +160,7 @@ const loading  = ref(true)
 // ── Fetch ──────────────────────────────────────────────
 onMounted(async () => {
   try {
-    const { data } = await axios.get(`http://localhost:8000/activities/${route.params.id}`)
+    const { data } = await api.get(`/activities/${route.params.id}`)
     activity.value = data
   } finally {
     loading.value = false

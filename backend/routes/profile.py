@@ -1,88 +1,68 @@
 """
 routes/profile.py — Vue profil : forme, tendances, récupération.
-
-Agrège les données pour donner une lecture de la condition physique
-actuelle : VO2max, charge chronique vs aiguë, score de récupération.
 """
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 from datetime import date, timedelta
-import math
 
-from database import get_db, Activity, DailyHealth, Sleep, HRV
+from database import get_db, Activity, DailyHealth, Sleep, HRV, User
+from auth import get_current_user
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
 
-# ---------------------------------------------------------------------------
-# Endpoint principal
-# ---------------------------------------------------------------------------
-
 @router.get("/")
-def get_profile(db: Session = Depends(get_db)):
-    """
-    Profil complet : forme du moment, VO2max, récupération, charge.
-    """
+def get_profile(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     today = date.today()
+    uid = current_user.id
 
     return {
-        "fitness_score":    _fitness_score(db, today),
-        "vo2max_history":   _vo2max_history(db),
-        "load_balance":     _load_balance(db, today),
-        "recovery_trend":   _recovery_trend(db, today),
-        "rhr_trend":        _rhr_trend(db, today),
-        "sleep_trend":      _sleep_trend(db, today),
-        "personal_bests":   _personal_bests(db),
-        "activity_streak":  _activity_streak(db, today),
+        "fitness_score":    _fitness_score(db, today, uid),
+        "vo2max_history":   _vo2max_history(db, uid),
+        "load_balance":     _load_balance(db, today, uid),
+        "recovery_trend":   _recovery_trend(db, today, uid),
+        "rhr_trend":        _rhr_trend(db, today, uid),
+        "sleep_trend":      _sleep_trend(db, today, uid),
+        "personal_bests":   _personal_bests(db, uid),
+        "activity_streak":  _activity_streak(db, today, uid),
     }
 
 
-# ---------------------------------------------------------------------------
-# Calculs
-# ---------------------------------------------------------------------------
+def _fitness_score(db: Session, today: date, uid: int) -> dict:
+    ctl = _avg_load(db, today, 42, uid)
+    atl = _avg_load(db, today, 7, uid)
+    tsb = ctl - atl
 
-def _fitness_score(db: Session, today: date) -> dict:
-    """
-    Score de forme estimé (0-100) basé sur :
-    - Charge chronique (CTL, 42j) vs aiguë (ATL, 7j)
-    - HRV vs baseline
-    - Sommeil moyen 7j
-    - FC repos tendance
-    """
-    # Charge chronique (42j) et aiguë (7j)
-    ctl = _avg_load(db, today, 42)
-    atl = _avg_load(db, today, 7)
-    tsb = ctl - atl  # Training Stress Balance
-
-    # HRV
     hrv_rows = db.query(HRV).filter(
-        HRV.date >= (today - timedelta(days=7)).isoformat()
+        HRV.user_id == uid,
+        HRV.date >= (today - timedelta(days=7)).isoformat(),
     ).all()
     hrv_avg_7 = _mean([h.last_night_avg for h in hrv_rows if h.last_night_avg])
 
-    # Baseline HRV
     hrv_all = db.query(HRV).filter(
-        HRV.date >= (today - timedelta(days=42)).isoformat()
+        HRV.user_id == uid,
+        HRV.date >= (today - timedelta(days=42)).isoformat(),
     ).all()
     hrv_baseline = _mean([h.last_night_avg for h in hrv_all if h.last_night_avg])
 
-    # Score HRV (0-40 pts)
     hrv_score = 20
     if hrv_baseline and hrv_avg_7:
         ratio = hrv_avg_7 / hrv_baseline
         hrv_score = min(40, max(0, 20 + (ratio - 1) * 60))
 
-    # Score TSB (0-30 pts) — TSB entre -10 et +10 = forme
     tsb_score = 15
     if ctl:
         tsb_norm = tsb / max(ctl, 1)
         tsb_score = min(30, max(0, 15 + tsb_norm * 30))
 
-    # Score sommeil (0-30 pts)
     sleep_rows = db.query(Sleep).filter(
-        Sleep.date >= (today - timedelta(days=7)).isoformat()
+        Sleep.user_id == uid,
+        Sleep.date >= (today - timedelta(days=7)).isoformat(),
     ).all()
     sleep_avg = _mean([s.sleep_score for s in sleep_rows if s.sleep_score])
     sleep_score = ((sleep_avg or 70) / 100) * 30
@@ -100,11 +80,10 @@ def _fitness_score(db: Session, today: date) -> dict:
     }
 
 
-def _vo2max_history(db: Session) -> list[dict]:
-    """Historique VO2max sur les activités qui le mesurent."""
+def _vo2max_history(db: Session, uid: int) -> list[dict]:
     rows = (
         db.query(Activity.start_time, Activity.vo2max, Activity.activity_type)
-        .filter(Activity.vo2max.isnot(None))
+        .filter(Activity.user_id == uid, Activity.vo2max.isnot(None))
         .order_by(Activity.start_time)
         .all()
     )
@@ -118,13 +97,12 @@ def _vo2max_history(db: Session) -> list[dict]:
     ]
 
 
-def _load_balance(db: Session, today: date) -> list[dict]:
-    """CTL et ATL semaine par semaine sur 16 semaines."""
+def _load_balance(db: Session, today: date, uid: int) -> list[dict]:
     result = []
     for i in range(15, -1, -1):
         week_end = today - timedelta(weeks=i)
-        ctl = _avg_load(db, week_end, 42)
-        atl = _avg_load(db, week_end, 7)
+        ctl = _avg_load(db, week_end, 42, uid)
+        atl = _avg_load(db, week_end, 7, uid)
         result.append({
             "date": week_end.isoformat(),
             "ctl": round(ctl, 1) if ctl else 0,
@@ -134,18 +112,17 @@ def _load_balance(db: Session, today: date) -> list[dict]:
     return result
 
 
-def _recovery_trend(db: Session, today: date) -> list[dict]:
-    """Body battery et HRV sur 30 jours."""
+def _recovery_trend(db: Session, today: date, uid: int) -> list[dict]:
     health = (
         db.query(DailyHealth)
-        .filter(DailyHealth.date >= (today - timedelta(days=30)).isoformat())
+        .filter(DailyHealth.user_id == uid, DailyHealth.date >= (today - timedelta(days=30)).isoformat())
         .order_by(DailyHealth.date)
         .all()
     )
     hrv_map = {
         h.date: h.last_night_avg
         for h in db.query(HRV)
-        .filter(HRV.date >= (today - timedelta(days=30)).isoformat())
+        .filter(HRV.user_id == uid, HRV.date >= (today - timedelta(days=30)).isoformat())
         .all()
         if h.last_night_avg
     }
@@ -160,11 +137,11 @@ def _recovery_trend(db: Session, today: date) -> list[dict]:
     ]
 
 
-def _rhr_trend(db: Session, today: date) -> list[dict]:
-    """FC repos sur 90 jours avec moyenne mobile 7j."""
+def _rhr_trend(db: Session, today: date, uid: int) -> list[dict]:
     rows = (
         db.query(DailyHealth.date, DailyHealth.resting_heart_rate)
         .filter(
+            DailyHealth.user_id == uid,
             DailyHealth.date >= (today - timedelta(days=90)).isoformat(),
             DailyHealth.resting_heart_rate.isnot(None),
         )
@@ -183,11 +160,10 @@ def _rhr_trend(db: Session, today: date) -> list[dict]:
     return result
 
 
-def _sleep_trend(db: Session, today: date) -> list[dict]:
-    """Score et durée du sommeil sur 30 jours."""
+def _sleep_trend(db: Session, today: date, uid: int) -> list[dict]:
     rows = (
         db.query(Sleep)
-        .filter(Sleep.date >= (today - timedelta(days=30)).isoformat())
+        .filter(Sleep.user_id == uid, Sleep.date >= (today - timedelta(days=30)).isoformat())
         .order_by(Sleep.date)
         .all()
     )
@@ -203,15 +179,14 @@ def _sleep_trend(db: Session, today: date) -> list[dict]:
     ]
 
 
-def _personal_bests(db: Session) -> dict:
-    """Records personnels par type d'activité."""
+def _personal_bests(db: Session, uid: int) -> dict:
     bests: dict = {}
 
-    # Distance max par type
     for type_key in ["running", "cycling", "swimming"]:
         row = (
             db.query(Activity)
             .filter(
+                Activity.user_id == uid,
                 Activity.activity_type == type_key,
                 Activity.distance_meters.isnot(None),
             )
@@ -225,8 +200,10 @@ def _personal_bests(db: Session) -> dict:
                 "activity_name": row.name,
             }
 
-    # VO2max max
-    row = db.query(Activity).filter(Activity.vo2max.isnot(None)).order_by(desc(Activity.vo2max)).first()
+    row = db.query(Activity).filter(
+        Activity.user_id == uid,
+        Activity.vo2max.isnot(None),
+    ).order_by(desc(Activity.vo2max)).first()
     if row:
         bests["vo2max_best"] = {
             "value": round(row.vo2max, 1),
@@ -236,26 +213,26 @@ def _personal_bests(db: Session) -> dict:
     return bests
 
 
-def _activity_streak(db: Session, today: date) -> dict:
-    """Série de jours consécutifs avec au moins une activité."""
+def _activity_streak(db: Session, today: date, uid: int) -> dict:
     streak = 0
     d = today
     while True:
         count = db.query(func.count(Activity.id)).filter(
-            func.date(Activity.start_time) == d.isoformat()
+            Activity.user_id == uid,
+            func.date(Activity.start_time) == d.isoformat(),
         ).scalar()
         if count and count > 0:
             streak += 1
             d -= timedelta(days=1)
         else:
             break
-    # Meilleure série sur 90j
     best = 0
     current = 0
     for i in range(90):
         d = today - timedelta(days=i)
         count = db.query(func.count(Activity.id)).filter(
-            func.date(Activity.start_time) == d.isoformat()
+            Activity.user_id == uid,
+            func.date(Activity.start_time) == d.isoformat(),
         ).scalar()
         if count and count > 0:
             current += 1
@@ -265,16 +242,12 @@ def _activity_streak(db: Session, today: date) -> dict:
     return {"current_streak": streak, "best_streak_90d": best}
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def _avg_load(db: Session, end_date: date, days: int) -> float:
-    """Charge d'entraînement moyenne sur N jours."""
+def _avg_load(db: Session, end_date: date, days: int, uid: int) -> float:
     start = end_date - timedelta(days=days)
     rows = (
         db.query(Activity.training_load)
         .filter(
+            Activity.user_id == uid,
             Activity.start_time >= start.isoformat(),
             Activity.start_time <= end_date.isoformat(),
             Activity.training_load.isnot(None),
