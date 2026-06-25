@@ -9,6 +9,46 @@
       </div>
     </header>
 
+    <!-- Compte ─────────────────────────────────────────── -->
+    <section class="section">
+      <h2 class="section-title">Compte</h2>
+      <div class="account-card">
+        <div class="account-row">
+          <span class="account-label">Email</span>
+          <span class="account-value mono">{{ authStore.user?.email }}</span>
+        </div>
+
+        <h3 class="subsection-title">Identifiants Garmin Connect</h3>
+
+        <div v-if="authStore.user?.has_garmin_credentials && !showGarminForm" class="garmin-status">
+          <span class="garmin-connected mono">{{ authStore.user?.garmin_email }}</span>
+          <div class="garmin-actions">
+            <button class="btn-sm" @click="showGarminForm = true">Modifier</button>
+            <button class="btn-sm btn-danger" @click="handleDeleteGarmin">Supprimer</button>
+          </div>
+        </div>
+
+        <div v-else-if="!showGarminForm" class="garmin-status">
+          <span class="garmin-not-connected">Non connecté</span>
+          <button class="btn-sm" @click="showGarminForm = true">Configurer</button>
+        </div>
+
+        <form v-if="showGarminForm" @submit.prevent="handleSaveGarmin" class="garmin-form">
+          <div class="field-inline">
+            <input v-model="garminEmail" type="email" placeholder="Email Garmin" required />
+            <input v-model="garminPassword" type="password" placeholder="Mot de passe Garmin" required />
+          </div>
+          <div class="garmin-form-actions">
+            <button type="submit" class="btn-sm btn-primary" :disabled="savingGarmin">
+              {{ savingGarmin ? 'Enregistrement…' : 'Enregistrer' }}
+            </button>
+            <button type="button" class="btn-sm" @click="showGarminForm = false">Annuler</button>
+          </div>
+          <p v-if="garminMsg" class="garmin-msg" :class="garminMsgType">{{ garminMsg }}</p>
+        </form>
+      </div>
+    </section>
+
     <!-- Skeleton ────────────────────────────────────────── -->
     <template v-if="store.loading">
       <SkeletonLoader type="kpi" :count="5" />
@@ -179,12 +219,43 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useProfileStore } from '../stores/profile'
+import { useAuthStore } from '../stores/auth'
 import SkeletonLoader from '../components/SkeletonLoader.vue'
 import LineChart from '../components/charts/LineChart.vue'
 
 const store = useProfileStore()
+const authStore = useAuthStore()
+
+const showGarminForm = ref(false)
+const garminEmail = ref('')
+const garminPassword = ref('')
+const savingGarmin = ref(false)
+const garminMsg = ref('')
+const garminMsgType = ref('')
+
+async function handleSaveGarmin() {
+  savingGarmin.value = true
+  garminMsg.value = ''
+  try {
+    const result = await authStore.updateGarminCredentials(garminEmail.value, garminPassword.value)
+    showGarminForm.value = false
+    garminEmail.value = ''
+    garminPassword.value = ''
+    garminMsg.value = result.credentials_valid ? 'Identifiants valides' : 'Identifiants sauvegardés (connexion Garmin non vérifiée)'
+    garminMsgType.value = result.credentials_valid ? 'success' : 'warning'
+  } catch {
+    garminMsg.value = 'Erreur lors de la sauvegarde'
+    garminMsgType.value = 'error'
+  } finally {
+    savingGarmin.value = false
+  }
+}
+
+async function handleDeleteGarmin() {
+  await authStore.deleteGarminCredentials()
+}
 
 const fitness       = computed(() => store.data?.fitness_score ?? {})
 const vo2maxHistory = computed(() => store.data?.vo2max_history ?? [])
@@ -279,6 +350,33 @@ onMounted(() => store.fetchProfile())
 .muted { color: var(--text-muted); }
 .text-teal { color: var(--teal); }
 .text-orange { color: var(--orange); }
+/* Compte */
+.account-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; }
+.account-row { display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+.account-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+.account-value { font-size: 14px; color: var(--text); }
+.subsection-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 600; margin-bottom: 12px; }
+.garmin-status { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.garmin-connected { font-size: 14px; color: var(--teal); }
+.garmin-not-connected { font-size: 13px; color: var(--text-muted); }
+.garmin-actions { display: flex; gap: 8px; }
+.garmin-form { margin-top: 12px; }
+.field-inline { display: flex; gap: 8px; margin-bottom: 12px; }
+.field-inline input { flex: 1; padding: 9px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: var(--mono); font-size: 13px; outline: none; }
+.field-inline input:focus { border-color: var(--teal); }
+.field-inline input::placeholder { color: var(--text-dim); }
+.garmin-form-actions { display: flex; gap: 8px; }
+.garmin-msg { font-size: 12px; font-family: var(--mono); margin-top: 8px; padding: 6px 10px; border-radius: var(--radius); }
+.garmin-msg.success { color: var(--teal); background: rgba(0, 212, 170, 0.08); }
+.garmin-msg.warning { color: #F59E0B; background: rgba(245, 158, 11, 0.08); }
+.garmin-msg.error { color: var(--orange); background: rgba(255, 107, 53, 0.08); }
+.btn-sm { padding: 6px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-muted); font-family: var(--sans); font-size: 12px; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+.btn-sm:hover { border-color: var(--teal); color: var(--teal); }
+.btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary { background: var(--teal); color: #000; border-color: var(--teal); }
+.btn-primary:hover { opacity: 0.9; color: #000; border-color: var(--teal); }
+.btn-danger:hover { border-color: var(--orange); color: var(--orange); }
+
 .error-state { padding: 64px; text-align: center; color: var(--text-muted); }
 
 @media (max-width: 900px) {

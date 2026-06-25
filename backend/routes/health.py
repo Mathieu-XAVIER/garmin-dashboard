@@ -7,60 +7,111 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from datetime import date, timedelta
 
-from database import get_db, DailyHealth, Sleep, HRV
+from database import get_db, DailyHealth, Sleep, HRV, User
+from auth import get_current_user
 
 router = APIRouter(prefix="/health", tags=["health"])
 
 
 @router.get("/daily")
-def daily_health(days: int = Query(30, ge=1, le=365), db: Session = Depends(get_db)):
+def daily_health(
+    days: int = Query(30, ge=1, le=365),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     since = (date.today() - timedelta(days=days)).isoformat()
-    items = db.query(DailyHealth).filter(DailyHealth.date >= since).order_by(desc(DailyHealth.date)).all()
+    items = (
+        db.query(DailyHealth)
+        .filter(DailyHealth.user_id == current_user.id, DailyHealth.date >= since)
+        .order_by(desc(DailyHealth.date))
+        .all()
+    )
     return [_sd(d) for d in items]
 
 
 @router.get("/daily/{date_str}")
-def daily_health_by_date(date_str: str, db: Session = Depends(get_db)):
-    row = db.query(DailyHealth).filter(DailyHealth.date == date_str).first()
+def daily_health_by_date(
+    date_str: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    row = db.query(DailyHealth).filter(
+        DailyHealth.user_id == current_user.id,
+        DailyHealth.date == date_str,
+    ).first()
     if not row:
         raise HTTPException(status_code=404, detail="Données introuvables pour cette date")
     return _sd(row)
 
 
 @router.get("/today")
-def today_health(db: Session = Depends(get_db)):
+def today_health(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     today = date.today().isoformat()
-    row = db.query(DailyHealth).filter(DailyHealth.date == today).first()
+    row = db.query(DailyHealth).filter(
+        DailyHealth.user_id == current_user.id,
+        DailyHealth.date == today,
+    ).first()
     if not row:
         return {"date": today, "message": "Pas encore de données pour aujourd'hui"}
     return _sd(row)
 
 
 @router.get("/sleep")
-def sleep_history(days: int = Query(30, ge=1, le=365), db: Session = Depends(get_db)):
+def sleep_history(
+    days: int = Query(30, ge=1, le=365),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     since = (date.today() - timedelta(days=days)).isoformat()
-    items = db.query(Sleep).filter(Sleep.date >= since).order_by(desc(Sleep.date)).all()
+    items = (
+        db.query(Sleep)
+        .filter(Sleep.user_id == current_user.id, Sleep.date >= since)
+        .order_by(desc(Sleep.date))
+        .all()
+    )
     return [_ss(s) for s in items]
 
 
 @router.get("/sleep/{date_str}")
-def sleep_by_date(date_str: str, db: Session = Depends(get_db)):
-    row = db.query(Sleep).filter(Sleep.date == date_str).first()
+def sleep_by_date(
+    date_str: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    row = db.query(Sleep).filter(
+        Sleep.user_id == current_user.id,
+        Sleep.date == date_str,
+    ).first()
     if not row:
         raise HTTPException(status_code=404, detail="Données de sommeil introuvables")
     return _ss(row)
 
 
 @router.get("/hrv")
-def hrv_history(days: int = Query(30, ge=1, le=365), db: Session = Depends(get_db)):
+def hrv_history(
+    days: int = Query(30, ge=1, le=365),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     since = (date.today() - timedelta(days=days)).isoformat()
-    items = db.query(HRV).filter(HRV.date >= since).order_by(desc(HRV.date)).all()
+    items = (
+        db.query(HRV)
+        .filter(HRV.user_id == current_user.id, HRV.date >= since)
+        .order_by(desc(HRV.date))
+        .all()
+    )
     return [_sh(h) for h in items]
 
 
 @router.get("/hrv/latest")
-def hrv_latest(db: Session = Depends(get_db)):
-    row = db.query(HRV).order_by(desc(HRV.date)).first()
+def hrv_latest(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    row = db.query(HRV).filter(HRV.user_id == current_user.id).order_by(desc(HRV.date)).first()
     if not row:
         return {"message": "Aucune donnée HRV disponible"}
     return _sh(row)

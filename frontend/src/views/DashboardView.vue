@@ -34,13 +34,14 @@
 
     <!-- Activités + Volume hebdo ───────────────────────── -->
     <div class="two-col">
-      <section class="section">
+      <section class="section activities-section">
         <h2 class="section-title">Activités récentes</h2>
-        <SkeletonLoader v-if="store.loading" type="table" :count="5" />
+        <SkeletonLoader v-if="store.loading" type="table" :count="4" />
         <div v-else class="card-list">
           <EmptyState v-if="!store.activities.length" message="Aucune activité enregistrée" />
-          <ActivityRow v-for="act in store.activities" :key="act.garmin_id" :activity="act" />
+          <ActivityRow v-for="act in store.activities.slice(0, 4)" :key="act.garmin_id" :activity="act" />
         </div>
+        <RouterLink to="/activities" class="see-all-link mono">Voir tout →</RouterLink>
       </section>
 
       <section class="section">
@@ -72,6 +73,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useGarminStore } from '../stores/garmin'
 import MetricCard    from '../components/cards/MetricCard.vue'
 import ActivityRow   from '../components/cards/ActivityRow.vue'
@@ -129,5 +131,11 @@ onMounted(() => {
 .status-good    { background: var(--teal-dim); color: var(--teal); }
 .status-warn    { background: var(--orange-dim); color: var(--orange); }
 .status-neutral { background: var(--surface-2); color: var(--text-muted); }
+.activities-section { position: relative; }
+.see-all-link { position: absolute; top: 0; right: 0; font-size: 12px; color: var(--teal); text-decoration: none; transition: opacity 0.15s; }
+.see-all-link:hover { opacity: 0.8; }
+.two-col > .section { display: flex; flex-direction: column; }
+.two-col > .section > .card-list,
+.two-col > .section > .chart-card { flex: 1; }
 @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } .view { padding: 20px 16px; } }
 </style>

@@ -1,6 +1,6 @@
 <template>
   <div id="app-shell">
-    <aside class="sidebar">
+    <aside v-if="showSidebar" class="sidebar">
       <div class="sidebar-logo">
         <span class="logo-icon">⬡</span>
         <span class="logo-text">Garmin<br><strong>Dashboard</strong></span>
@@ -21,22 +21,28 @@
           {{ syncing ? 'Synchro…' : 'Synchroniser' }}
         </button>
         <p v-if="store.lastSync" class="last-sync">Synchro {{ timeAgo(store.lastSync) }}</p>
+        <button class="logout-btn" @click="handleLogout">Déconnexion</button>
       </div>
     </aside>
 
-    <main class="main-content">
+    <main class="main-content" :class="{ 'full-width': !showSidebar }">
       <RouterView />
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { RouterLink, RouterView } from 'vue-router'
+import { ref, computed } from 'vue'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { useGarminStore } from './stores/garmin'
+import { useAuthStore } from './stores/auth'
 
 const store = useGarminStore()
+const authStore = useAuthStore()
+const route = useRoute()
 const syncing = ref(false)
+
+const showSidebar = computed(() => route.name !== 'login')
 
 async function handleSync() {
   syncing.value = true
@@ -46,6 +52,10 @@ async function handleSync() {
   } finally {
     syncing.value = false
   }
+}
+
+function handleLogout() {
+  authStore.logout()
 }
 
 function timeAgo(date: Date): string {
@@ -79,5 +89,9 @@ function timeAgo(date: Date): string {
 @keyframes spin { to { transform: rotate(360deg); } }
 .last-sync { text-align: center; font-size: 12px; color: var(--text-muted); margin-top: 8px; font-family: var(--mono); }
 
+.logout-btn { width: 100%; padding: 8px 12px; background: transparent; border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-muted); font-family: var(--sans); font-size: 12px; cursor: pointer; margin-top: 8px; transition: border-color 0.15s, color 0.15s; }
+.logout-btn:hover { border-color: var(--orange); color: var(--orange); }
+
 .main-content { flex: 1; overflow: auto; min-width: 0; }
+.main-content.full-width { width: 100%; }
 </style>

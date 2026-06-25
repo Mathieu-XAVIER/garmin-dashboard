@@ -99,7 +99,7 @@
           <span>Cal. actives</span>
           <span>Intensité</span>
         </div>
-        <div v-for="d in store.dailyHealth" :key="d.date" class="table-row">
+        <div v-for="d in paginatedHealth" :key="d.date" class="table-row">
           <span class="mono muted">{{ d.date }}</span>
           <span class="mono">{{ d.steps?.toLocaleString('fr-FR') ?? '—' }}</span>
           <span class="mono text-teal">{{ d.body_battery_high ?? '—' }}</span>
@@ -109,12 +109,17 @@
           <span class="mono muted">{{ intensityMin(d) }}</span>
         </div>
       </div>
+      <div v-if="healthTotalPages > 1" class="pagination">
+        <button class="page-btn" :disabled="healthPage === 1" @click="healthPage--">‹ Précédent</button>
+        <span class="page-info mono">{{ healthPage }} / {{ healthTotalPages }}</span>
+        <button class="page-btn" :disabled="healthPage === healthTotalPages" @click="healthPage++">Suivant ›</button>
+      </div>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useGarminStore } from '../stores/garmin'
 import MetricCard from '../components/cards/MetricCard.vue'
 import AreaChart from '../components/charts/AreaChart.vue'
@@ -122,6 +127,12 @@ import BarChart from '../components/charts/BarChart.vue'
 
 const store = useGarminStore()
 const days = ref(30)
+const healthPage = ref(1)
+const healthPerPage = 15
+
+const healthTotalPages = computed(() => Math.max(1, Math.ceil(store.dailyHealth.length / healthPerPage)))
+const paginatedHealth = computed(() => store.dailyHealth.slice((healthPage.value - 1) * healthPerPage, healthPage.value * healthPerPage))
+watch(days, () => { healthPage.value = 1 })
 
 async function changeDays(d: number) {
   days.value = d
@@ -203,4 +214,9 @@ onMounted(() => store.fetchDailyHealth(30))
 .muted { color: var(--text-muted); }
 .text-teal { color: var(--teal); }
 .text-orange { color: var(--orange); }
+.pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 14px; }
+.page-btn { padding: 6px 14px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font-family: var(--mono); font-size: 12px; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+.page-btn:hover:not(:disabled) { border-color: var(--teal); color: var(--teal); }
+.page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.page-info { font-size: 12px; color: var(--text-muted); }
 </style>

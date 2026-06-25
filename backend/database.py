@@ -4,7 +4,7 @@ database.py — Modèles SQLAlchemy et initialisation SQLite
 
 from sqlalchemy import (
     create_engine, Column, Integer, Float, String,
-    DateTime, JSON, UniqueConstraint, text, inspect as sa_inspect
+    DateTime, JSON, ForeignKey, UniqueConstraint, text, inspect as sa_inspect
 )
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from datetime import datetime
@@ -19,11 +19,23 @@ class Base(DeclarativeBase):
     pass
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    garmin_email = Column(String, nullable=True)
+    garmin_password_encrypted = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Activity(Base):
     __tablename__ = "activities"
 
     id = Column(Integer, primary_key=True, index=True)
-    garmin_id = Column(String, unique=True, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    garmin_id = Column(String, index=True, nullable=False)
     activity_type = Column(String)
     name = Column(String)
     start_time = Column(DateTime)
@@ -43,12 +55,17 @@ class Activity(Base):
     gps_track = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    __table_args__ = (
+        UniqueConstraint("user_id", "garmin_id", name="uq_activity_user_garmin"),
+    )
+
 
 class DailyHealth(Base):
     __tablename__ = "daily_health"
 
     id = Column(Integer, primary_key=True, index=True)
-    date = Column(String, unique=True, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    date = Column(String, index=True, nullable=False)
     steps = Column(Integer)
     total_distance_meters = Column(Float)
     calories_total = Column(Integer)
@@ -66,12 +83,17 @@ class DailyHealth(Base):
     raw = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    __table_args__ = (
+        UniqueConstraint("user_id", "date", name="uq_health_user_date"),
+    )
+
 
 class Sleep(Base):
     __tablename__ = "sleep"
 
     id = Column(Integer, primary_key=True, index=True)
-    date = Column(String, unique=True, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    date = Column(String, index=True, nullable=False)
     sleep_start = Column(DateTime)
     sleep_end = Column(DateTime)
     duration_seconds = Column(Integer)
@@ -86,12 +108,17 @@ class Sleep(Base):
     raw = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    __table_args__ = (
+        UniqueConstraint("user_id", "date", name="uq_sleep_user_date"),
+    )
+
 
 class HRV(Base):
     __tablename__ = "hrv"
 
     id = Column(Integer, primary_key=True, index=True)
-    date = Column(String, unique=True, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    date = Column(String, index=True, nullable=False)
     weekly_avg = Column(Float)
     last_night_avg = Column(Float)
     last_night_5_min_high = Column(Float)
@@ -101,18 +128,23 @@ class HRV(Base):
     raw = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    __table_args__ = (
+        UniqueConstraint("user_id", "date", name="uq_hrv_user_date"),
+    )
+
 
 class PrepExerciseLog(Base):
     __tablename__ = "prep_exercise_log"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     date = Column(String, nullable=False, index=True)
     exercise_type = Column(String, nullable=False)  # pompes, squats, abdos
     reps = Column(Integer, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     __table_args__ = (
-        UniqueConstraint("date", "exercise_type", name="uq_prep_date_type"),
+        UniqueConstraint("user_id", "date", "exercise_type", name="uq_prep_user_date_type"),
     )
 
 
@@ -127,8 +159,20 @@ def get_db():
 def init_db():
     Base.metadata.create_all(bind=engine)
     inspector = sa_inspect(engine)
-    columns = [c["name"] for c in inspector.get_columns("activities")]
-    if "gps_track" not in columns:
+
+    # Migration : colonne gps_track
+    act_cols = [c["name"] for c in inspector.get_columns("activities")]
+    if "gps_track" not in act_cols:
         with engine.connect() as conn:
             conn.execute(text("ALTER TABLE activities ADD COLUMN gps_track JSON"))
             conn.commit()
+
+    # Migration : colonne user_id sur toutes les tables de données
+    tables_to_migrate = ["activities", "daily_health", "sleep", "hrv", "prep_exercise_log"]
+    for table_name in tables_to_migrate:
+        if table_name in inspector.get_table_names():
+            cols = [c["name"] for c in inspector.get_columns(table_name)]
+            if "user_id" not in cols:
+                with engine.connect() as conn:
+                    conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN user_id INTEGER REFERENCES users(id)"))
+                    conn.commit()
