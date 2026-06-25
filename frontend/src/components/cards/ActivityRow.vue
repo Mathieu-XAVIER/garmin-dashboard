@@ -79,4 +79,11 @@ function formatDate(dt: string): string {
 .unit { font-size: 12px; color: var(--text-muted); }
 .text-orange { color: var(--orange); }
 .chevron { font-size: 18px; color: var(--text-dim); transition: color 0.15s; margin-left: 4px; }
+
+@media (max-width: 768px) {
+  .activity-row { padding: 10px 12px; gap: 10px; }
+  .act-metrics { gap: 10px; flex-wrap: wrap; }
+  .act-metric { font-size: 12px; }
+  .act-name { font-size: 13px; }
+}
 </style>

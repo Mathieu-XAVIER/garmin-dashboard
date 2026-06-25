@@ -307,4 +307,18 @@ function formatDate(dt: string): string {
 .text-orange { color: var(--orange); }
 
 .error-state { padding: 64px 32px; text-align: center; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; gap: 16px; }
+
+@media (max-width: 768px) {
+  .view { padding: 16px 12px; }
+  .view-title { font-size: 20px; }
+  .act-title-row { gap: 12px; margin-bottom: 20px; }
+  .act-type-badge-lg { width: 44px; height: 44px; font-size: 20px; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .te-row { grid-template-columns: 1fr; }
+  .zones-layout { grid-template-columns: 1fr; gap: 16px; }
+  .zone-row { grid-template-columns: 10px 50px 1fr 44px 36px; gap: 6px; }
+  .splits-table { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-header, .table-row { min-width: 500px; }
+  .section { margin-bottom: 20px; }
+}
 </style>

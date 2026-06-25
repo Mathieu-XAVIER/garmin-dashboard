@@ -137,5 +137,13 @@ onMounted(() => {
 .two-col > .section { display: flex; flex-direction: column; }
 .two-col > .section > .card-list,
 .two-col > .section > .chart-card { flex: 1; }
-@media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } .view { padding: 20px 16px; } }
+@media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+@media (max-width: 768px) {
+  .view { padding: 16px 12px; }
+  .view-header { margin-bottom: 20px; }
+  .view-title { font-size: 20px; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .section { margin-bottom: 24px; }
+  .chart-card { padding: 12px 8px 6px; }
+}
 </style>

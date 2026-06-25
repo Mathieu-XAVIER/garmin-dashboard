@@ -219,4 +219,16 @@ onMounted(() => store.fetchDailyHealth(30))
 .page-btn:hover:not(:disabled) { border-color: var(--teal); color: var(--teal); }
 .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .page-info { font-size: 12px; color: var(--text-muted); }
+
+@media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+@media (max-width: 768px) {
+  .view { padding: 16px 12px; }
+  .view-header { flex-direction: column; gap: 12px; margin-bottom: 20px; }
+  .view-title { font-size: 20px; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .chart-card { padding: 12px 8px 6px; }
+  .health-table { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-header, .table-row { min-width: 600px; }
+  .section { margin-bottom: 20px; }
+}
 </style>

@@ -383,6 +383,22 @@ onMounted(() => store.fetchProfile())
   .two-col { grid-template-columns: 1fr; }
   .fitness-hero { grid-template-columns: 1fr; }
   .fitness-metrics { grid-template-columns: 1fr 1fr; }
-  .view { padding: 20px 16px; }
+}
+@media (max-width: 768px) {
+  .view { padding: 16px 12px; }
+  .view-title { font-size: 20px; }
+  .fitness-hero { padding: 20px 16px; gap: 20px; }
+  .score-ring-wrap { width: 120px; }
+  .score-ring { width: 120px; height: 120px; }
+  .score-val { font-size: 30px; }
+  .fitness-metrics { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .fm-value { font-size: 18px; }
+  .streak-cards { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .streak-num { font-size: 28px; }
+  .streak-card { padding: 14px; }
+  .chart-card { padding: 12px 8px 6px; }
+  .account-card { padding: 16px; }
+  .field-inline { flex-direction: column; }
+  .section { margin-bottom: 20px; }
 }
 </style>

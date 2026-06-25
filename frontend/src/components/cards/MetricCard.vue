@@ -91,4 +91,10 @@ const displayValue = computed(() => {
 .card-trend { margin-top: 6px; font-size: 12px; font-family: var(--mono); }
 .up { color: var(--teal); }
 .down { color: var(--orange); }
+
+@media (max-width: 768px) {
+  .metric-card { padding: 12px 14px; }
+  .value-number { font-size: 22px; }
+  .card-label { font-size: 11px; }
+}
 </style>
