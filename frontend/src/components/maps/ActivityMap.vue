@@ -28,7 +28,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import axios from 'axios'
+import api from '@/api'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import SkeletonLoader from '../SkeletonLoader.vue'
@@ -86,7 +86,7 @@ onUnmounted(() => {
 onMounted(async () => {
   document.addEventListener('keydown', onKeydown)
   try {
-    const { data } = await axios.get(`http://localhost:8000/activities/${props.garminId}/gps`)
+    const { data } = await api.get(`/activities/${props.garminId}/gps`)
     if (data.has_gps && data.track?.length) {
       track.value = data.track
       hasGps.value = true

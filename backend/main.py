@@ -6,47 +6,38 @@ import os
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+load_dotenv()
 
-from database import init_db
-from garmin_client import GarminClient
-from scheduler import sync_all, setup_scheduler
+from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
+
+from database import init_db, get_db, User
+from garmin_manager import GarminManager
+from scheduler import sync_user, sync_all_users, setup_scheduler
+from auth import get_current_user
 from routes.activities import router as activities_router
 from routes.health import router as health_router
 from routes.stats import router as stats_router
 from routes.profile import router as profile_router
 from routes.handball import router as handball_router
-
-load_dotenv()
+from routes.auth import router as auth_router
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
 )
 logger = logging.getLogger(__name__)
 
-garmin_client = GarminClient(
-    email=os.getenv("GARMIN_EMAIL", ""),
-    password=os.getenv("GARMIN_PASSWORD", ""),
-)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Démarrage de l'application…")
     init_db()
-    app.state.garmin_client = garmin_client
+    app.state.garmin_manager = GarminManager()
     logger.info("Base de données initialisée ✓")
-    connected = garmin_client.connect()
-    if connected:
-        initial_days = int(os.getenv("INITIAL_SYNC_DAYS", "90"))
-        logger.info(f"Synchro initiale sur {initial_days} jours…")
-        await sync_all(garmin_client, days_back=initial_days)
-    else:
-        logger.warning("API démarrée sans connexion Garmin — utilisez POST /sync pour relancer")
+
     interval = int(os.getenv("SYNC_INTERVAL_MINUTES", "60"))
-    setup_scheduler(garmin_client, interval_minutes=interval)
+    setup_scheduler(app.state.garmin_manager, interval_minutes=interval)
     yield
     logger.info("Arrêt de l'application")
 
@@ -54,7 +45,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Garmin Dashboard API",
     description="API pour visualiser les données Garmin Connect",
-    version="0.1.0",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
@@ -66,6 +57,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router)
 app.include_router(activities_router)
 app.include_router(health_router)
 app.include_router(stats_router)
@@ -79,8 +71,16 @@ def root():
 
 
 @app.post("/sync")
-async def manual_sync(days: int = 7):
-    summary = await sync_all(garmin_client, days_back=days)
+async def manual_sync(
+    days: int = 7,
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    manager = app.state.garmin_manager
+    client = manager.get_client(current_user)
+    if not client:
+        return {"status": "error", "message": "Identifiants Garmin non configurés"}
+    summary = await sync_user(client, current_user.id, db, days_back=days)
     return {"status": "ok", "summary": summary}
 
 

@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from datetime import date, timedelta
 
-from database import get_db, Activity, PrepExerciseLog
+from database import get_db, Activity, PrepExerciseLog, User
+from auth import get_current_user
 
 router = APIRouter(prefix="/handball", tags=["handball"])
 
@@ -32,10 +33,11 @@ def _week_bounds(week_num: int) -> tuple[date, date]:
     return start, min(end, PREP_END)
 
 
-def _get_running_entries(db: Session, start: date, end: date) -> list[dict]:
+def _get_running_entries(db: Session, start: date, end: date, uid: int) -> list[dict]:
     rows = (
         db.query(Activity)
         .filter(
+            Activity.user_id == uid,
             Activity.activity_type.in_(RUNNING_TYPES),
             Activity.start_time >= start.isoformat(),
             Activity.start_time <= (end + timedelta(days=1)).isoformat(),
@@ -57,10 +59,11 @@ def _get_running_entries(db: Session, start: date, end: date) -> list[dict]:
     ]
 
 
-def _get_exercises(db: Session, start: date, end: date) -> list[dict]:
+def _get_exercises(db: Session, start: date, end: date, uid: int) -> list[dict]:
     rows = (
         db.query(PrepExerciseLog)
         .filter(
+            PrepExerciseLog.user_id == uid,
             PrepExerciseLog.date >= start.isoformat(),
             PrepExerciseLog.date <= end.isoformat(),
         )
@@ -79,7 +82,11 @@ def _get_exercises(db: Session, start: date, end: date) -> list[dict]:
 
 
 @router.get("/prep")
-def get_prep(db: Session = Depends(get_db)):
+def get_prep(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    uid = current_user.id
     today = date.today()
     current_week = min(PREP_WEEKS, max(1, (today - PREP_START).days // 7 + 1))
     if today < PREP_START:
@@ -87,8 +94,8 @@ def get_prep(db: Session = Depends(get_db)):
     elif today > PREP_END:
         current_week = PREP_WEEKS
 
-    running = _get_running_entries(db, PREP_START, PREP_END)
-    exercises = _get_exercises(db, PREP_START, PREP_END)
+    running = _get_running_entries(db, PREP_START, PREP_END, uid)
+    exercises = _get_exercises(db, PREP_START, PREP_END, uid)
 
     total_km = sum(r["distance_km"] for r in running)
 
@@ -143,7 +150,11 @@ class ExerciseInput(BaseModel):
 
 
 @router.post("/exercises")
-def add_exercise(body: ExerciseInput, db: Session = Depends(get_db)):
+def add_exercise(
+    body: ExerciseInput,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     if body.exercise_type not in ("pompes", "squats", "abdos"):
         raise HTTPException(400, "Type invalide : pompes, squats ou abdos")
     if body.reps < 0:
@@ -151,13 +162,14 @@ def add_exercise(body: ExerciseInput, db: Session = Depends(get_db)):
 
     existing = (
         db.query(PrepExerciseLog)
-        .filter_by(date=body.date, exercise_type=body.exercise_type)
+        .filter_by(user_id=current_user.id, date=body.date, exercise_type=body.exercise_type)
         .first()
     )
     if existing:
         existing.reps = body.reps
     else:
         db.add(PrepExerciseLog(
+            user_id=current_user.id,
             date=body.date,
             exercise_type=body.exercise_type,
             reps=body.reps,
@@ -167,8 +179,12 @@ def add_exercise(body: ExerciseInput, db: Session = Depends(get_db)):
 
 
 @router.delete("/exercises/{exercise_id}")
-def delete_exercise(exercise_id: int, db: Session = Depends(get_db)):
-    row = db.query(PrepExerciseLog).filter_by(id=exercise_id).first()
+def delete_exercise(
+    exercise_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    row = db.query(PrepExerciseLog).filter_by(id=exercise_id, user_id=current_user.id).first()
     if not row:
         raise HTTPException(404, "Entrée introuvable")
     db.delete(row)
