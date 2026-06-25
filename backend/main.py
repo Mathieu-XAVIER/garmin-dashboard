@@ -16,6 +16,7 @@ from database import init_db, get_db, User
 from garmin_manager import GarminManager
 from scheduler import sync_user, sync_all_users, setup_scheduler
 from auth import get_current_user
+from discord_logger import setup_discord_logging
 from routes.activities import router as activities_router
 from routes.health import router as health_router
 from routes.stats import router as stats_router
@@ -27,6 +28,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
 )
+setup_discord_logging()
 logger = logging.getLogger(__name__)
 
 
