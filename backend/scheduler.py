@@ -143,6 +143,7 @@ async def sync_user(client: GarminClient, user_id: int, db: Session, days_back: 
         logger.info(f"[user={user_id}] Activités : {summary['activities']} synchronisées")
     except Exception as e:
         summary["errors"].append(f"activities: {e}")
+        logger.error(f"[user={user_id}] Erreur synchro activités : {e}", exc_info=True)
         db.rollback()
 
     current = start
@@ -157,6 +158,7 @@ async def sync_user(client: GarminClient, user_id: int, db: Session, days_back: 
                 summary["daily_health"] += 1
         except Exception as e:
             summary["errors"].append(f"daily_health {date_str}: {e}")
+            logger.error(f"[user={user_id}] Erreur santé quotidienne {date_str} : {e}", exc_info=True)
 
         try:
             raw = client.get_sleep(current)
@@ -167,6 +169,7 @@ async def sync_user(client: GarminClient, user_id: int, db: Session, days_back: 
                     summary["sleep"] += 1
         except Exception as e:
             summary["errors"].append(f"sleep {date_str}: {e}")
+            logger.error(f"[user={user_id}] Erreur sommeil {date_str} : {e}", exc_info=True)
 
         try:
             raw = client.get_hrv(current)
@@ -177,6 +180,7 @@ async def sync_user(client: GarminClient, user_id: int, db: Session, days_back: 
                     summary["hrv"] += 1
         except Exception as e:
             summary["errors"].append(f"hrv {date_str}: {e}")
+            logger.error(f"[user={user_id}] Erreur HRV {date_str} : {e}", exc_info=True)
 
         db.commit()
         current += timedelta(days=1)
