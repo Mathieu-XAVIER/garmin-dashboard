@@ -28,6 +28,7 @@ class User(Base):
     garmin_email = Column(String, nullable=True)
     garmin_password_encrypted = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    nav_preferences = Column(JSON, nullable=True)
 
 
 class Activity(Base):
@@ -148,10 +149,149 @@ class PrepExerciseLog(Base):
     )
 
 
+class CustomDashboard(Base):
+    __tablename__ = "custom_dashboards"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    slug = Column(String, nullable=False, index=True)
+    icon = Column(String, nullable=True)
+    position = Column(Integer, nullable=False, default=0)
+    config = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "slug", name="uq_dashboard_user_slug"),
+    )
+
+
+class DashboardWidget(Base):
+    __tablename__ = "dashboard_widgets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    dashboard_id = Column(Integer, ForeignKey("custom_dashboards.id", ondelete="CASCADE"), nullable=False, index=True)
+    widget_type = Column(String, nullable=False)
+    title = Column(String, nullable=False)
+    position = Column(Integer, nullable=False, default=0)
+    width = Column(String, nullable=False, default="full")
+    config = Column(JSON, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class CustomExerciseLog(Base):
+    __tablename__ = "custom_exercise_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    dashboard_id = Column(Integer, ForeignKey("custom_dashboards.id", ondelete="CASCADE"), nullable=False, index=True)
+    date = Column(String, nullable=False, index=True)
+    exercise_type = Column(String, nullable=False)
+    reps = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "dashboard_id", "date", "exercise_type", name="uq_exercise_user_dashboard_date_type"),
+    )
+
+
 def get_db():
     db = SessionLocal()
     try:
         yield db
+    finally:
+        db.close()
+
+
+def _migrate_handball_to_custom_dashboards():
+    db = SessionLocal()
+    try:
+        # Créer le dashboard pour tous les utilisateurs avec credentials Garmin
+        # (le dashboard handball était visible par tous avant la migration)
+        users = db.query(User).filter(User.garmin_email.isnot(None)).all()
+        for user in users:
+            user_id = user.id
+            existing = db.query(CustomDashboard).filter_by(user_id=user_id, slug="prepa-handball").first()
+            if existing:
+                continue
+
+            dashboard = CustomDashboard(
+                user_id=user_id,
+                name="Prépa Handball",
+                slug="prepa-handball",
+                icon="🤾",
+                position=0,
+                config={
+                    "date_range": {"type": "fixed", "start": "2026-06-30", "end": "2026-08-10"},
+                    "description": "Nord Drôme Handball — Prépa physique",
+                    "color": "#FF6B35",
+                },
+            )
+            db.add(dashboard)
+            db.flush()
+
+            widgets = [
+                DashboardWidget(
+                    dashboard_id=dashboard.id, widget_type="objective", title="Défi Course",
+                    position=0, width="quarter", config={
+                        "data_source": "garmin_running_km", "target_value": 50, "unit": "km",
+                        "icon": "🏃", "color": "var(--teal)", "aggregation": "sum",
+                        "garmin_query": {
+                            "table": "activities", "field": "distance_meters",
+                            "filter_type": ["running", "trail_running", "treadmill_running", "track_running"],
+                            "transform": "divide_1000",
+                        },
+                    },
+                ),
+                DashboardWidget(
+                    dashboard_id=dashboard.id, widget_type="objective", title="Pompes",
+                    position=1, width="quarter", config={
+                        "exercise_type": "pompes", "target_value": 30, "unit": "reps",
+                        "icon": "💪", "color": "var(--orange)", "aggregation": "max",
+                    },
+                ),
+                DashboardWidget(
+                    dashboard_id=dashboard.id, widget_type="objective", title="Squats",
+                    position=2, width="quarter", config={
+                        "exercise_type": "squats", "target_value": 50, "unit": "reps",
+                        "icon": "🦵", "color": "var(--purple)", "aggregation": "max",
+                    },
+                ),
+                DashboardWidget(
+                    dashboard_id=dashboard.id, widget_type="objective", title="Abdos",
+                    position=3, width="quarter", config={
+                        "exercise_type": "abdos", "target_value": 80, "unit": "reps",
+                        "icon": "🔥", "color": "#F59E0B", "aggregation": "max",
+                    },
+                ),
+                DashboardWidget(
+                    dashboard_id=dashboard.id, widget_type="exercise_tracker", title="Enregistrer un essai",
+                    position=4, width="full", config={
+                        "exercises": [
+                            {"type": "pompes", "label": "Pompes", "icon": "💪", "color": "var(--orange)", "target": 30, "aggregation": "max"},
+                            {"type": "squats", "label": "Squats", "icon": "🦵", "color": "var(--purple)", "target": 50, "aggregation": "max"},
+                            {"type": "abdos", "label": "Abdos", "icon": "🔥", "color": "#F59E0B", "target": 80, "aggregation": "max"},
+                        ],
+                        "running_types": ["running", "trail_running", "treadmill_running", "track_running"],
+                        "running_target_km": 50,
+                        "show_input_form": True,
+                        "show_weekly_breakdown": True,
+                    },
+                ),
+            ]
+            db.add_all(widgets)
+
+            old_logs = db.query(PrepExerciseLog).filter_by(user_id=user_id).all()
+            for log in old_logs:
+                db.add(CustomExerciseLog(
+                    user_id=user_id,
+                    dashboard_id=dashboard.id,
+                    date=log.date,
+                    exercise_type=log.exercise_type,
+                    reps=log.reps,
+                ))
+
+        db.commit()
     finally:
         db.close()
 
@@ -176,3 +316,14 @@ def init_db():
                 with engine.connect() as conn:
                     conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN user_id INTEGER REFERENCES users(id)"))
                     conn.commit()
+
+    # Migration : colonne nav_preferences sur users
+    user_cols = [c["name"] for c in inspector.get_columns("users")]
+    if "nav_preferences" not in user_cols:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN nav_preferences JSON"))
+            conn.commit()
+
+    # Migration : handball vers custom dashboards
+    if "prep_exercise_log" in inspector.get_table_names():
+        _migrate_handball_to_custom_dashboards()
