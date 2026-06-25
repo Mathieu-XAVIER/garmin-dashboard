@@ -42,6 +42,9 @@
         </div>
       </section>
 
+      <!-- Carte GPS ─────────────────────────────────────── -->
+      <ActivityMap v-if="activity?.has_gps" :garmin-id="(route.params.id as string)" />
+
       <!-- Effets d'entraînement ──────────────────────────── -->
       <section class="section" v-if="activity.aerobic_training_effect || activity.anaerobic_training_effect">
         <h2 class="section-title">Effets d'entraînement</h2>
@@ -148,6 +151,7 @@ import axios from 'axios'
 import MetricCard from '../components/cards/MetricCard.vue'
 import DonutChart from '../components/charts/DonutChart.vue'
 import SkeletonLoader from '../components/SkeletonLoader.vue'
+import ActivityMap from '../components/maps/ActivityMap.vue'
 
 const route    = useRoute()
 const activity = ref<any>(null)
@@ -242,7 +246,7 @@ function formatDate(dt: string): string {
 
 .view-header { margin-bottom: 24px; display: flex; align-items: center; gap: 16px; }
 .back-btn {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   text-decoration: none;
   font-family: var(--mono);
@@ -252,27 +256,27 @@ function formatDate(dt: string): string {
   gap: 6px;
 }
 .back-btn:hover { color: var(--teal); }
-.badge-loading { font-size: 11px; font-family: var(--mono); padding: 3px 10px; background: var(--teal-dim); color: var(--teal); border-radius: 20px; }
+.badge-loading { font-size: 12px; font-family: var(--mono); padding: 4px 12px; background: var(--teal-dim); color: var(--teal); border-radius: 20px; }
 
 .act-title-row { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
 .act-type-badge-lg { width: 52px; height: 52px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
-.view-title { font-size: 22px; font-weight: 600; }
-.act-date { font-size: 11px; color: var(--text-muted); margin-top: 4px; text-transform: capitalize; }
+.view-title { font-size: 24px; font-weight: 600; }
+.act-date { font-size: 13px; color: var(--text-muted); margin-top: 4px; text-transform: capitalize; }
 
 .section { margin-bottom: 28px; }
-.section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); font-weight: 500; margin-bottom: 14px; }
+.section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 600; margin-bottom: 14px; }
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
 
 /* Training Effect */
 .te-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: start; }
 .te-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
-.te-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+.te-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
 .te-bar-wrap { height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
 .te-bar { height: 100%; border-radius: 3px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
 .te-bar.teal   { background: var(--teal); }
 .te-bar.orange { background: var(--orange); }
 .te-value { font-family: var(--mono); font-size: 22px; font-weight: 500; }
-.te-unit { font-size: 12px; color: var(--text-muted); }
+.te-unit { font-size: 13px; color: var(--text-muted); }
 
 /* Zones FC */
 .zones-layout { display: grid; grid-template-columns: 260px 1fr; gap: 24px; align-items: start; }
@@ -280,11 +284,11 @@ function formatDate(dt: string): string {
 .zones-list { display: flex; flex-direction: column; gap: 10px; }
 .zone-row { display: grid; grid-template-columns: 10px 56px 1fr 52px 40px; align-items: center; gap: 10px; }
 .zone-dot { width: 10px; height: 10px; border-radius: 50%; }
-.zone-name { font-size: 12px; color: var(--text-muted); }
+.zone-name { font-size: 13px; color: var(--text-muted); }
 .zone-bar-wrap { height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
 .zone-bar { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
-.zone-time { font-size: 12px; text-align: right; }
-.zone-pct  { font-size: 11px; text-align: right; }
+.zone-time { font-size: 13px; text-align: right; }
+.zone-pct  { font-size: 12px; text-align: right; }
 
 /* Splits */
 .splits-table { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
@@ -293,8 +297,8 @@ function formatDate(dt: string): string {
   grid-template-columns: 32px 1fr 1fr 1.2fr 1fr 0.8fr 0.8fr;
   gap: 8px; padding: 10px 16px; align-items: center;
 }
-.table-header { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); border-bottom: 1px solid var(--border); }
-.table-row { font-size: 12px; border-bottom: 1px solid var(--border); transition: background 0.12s; }
+.table-header { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); border-bottom: 1px solid var(--border); font-weight: 600; }
+.table-row { font-size: 13px; border-bottom: 1px solid var(--border); transition: background 0.12s; }
 .table-row:last-child { border-bottom: none; }
 .table-row:hover { background: var(--surface-2); }
 .mono { font-family: var(--mono); }

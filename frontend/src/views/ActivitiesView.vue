@@ -59,6 +59,7 @@
           <span class="act-name-cell">
             <span class="type-dot" :style="{ background: typeColor(act.activity_type) }"></span>
             {{ act.name || act.activity_type }}
+            <span v-if="act.has_gps" class="gps-badge" title="Parcours GPS disponible">📍</span>
           </span>
           <span class="mono muted">{{ fmtDate(act.start_time) }}</span>
           <span class="mono">{{ act.distance_meters ? (act.distance_meters/1000).toFixed(2) + ' km' : '—' }}</span>
@@ -114,25 +115,26 @@ onMounted(async () => {
 <style scoped>
 .view { padding: 32px 40px; }
 .view-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; gap: 16px; flex-wrap: wrap; }
-.view-title { font-size: 22px; font-weight: 600; }
-.view-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.view-title { font-size: 24px; font-weight: 600; }
+.view-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
 .section { margin-bottom: 28px; }
-.section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); font-weight: 500; margin-bottom: 14px; }
+.section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 600; margin-bottom: 14px; }
 .filters { display: flex; gap: 6px; flex-wrap: wrap; }
-.filter-btn { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: none; color: var(--text-muted); font-size: 11px; font-family: var(--mono); cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.15s; }
+.filter-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: none; color: var(--text-muted); font-size: 12px; font-family: var(--mono); cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.15s; }
 .filter-btn:hover { border-color: var(--teal); color: var(--teal); }
 .filter-btn.active { background: var(--teal-dim); border-color: var(--teal); color: var(--teal); }
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
 .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 12px 8px; }
 .activities-table { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
 .table-header, .table-row { display: grid; grid-template-columns: 2fr 1.2fr 1fr 0.8fr 0.8fr 1fr 0.7fr 24px; gap: 8px; padding: 10px 16px; align-items: center; }
-.table-header { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); border-bottom: 1px solid var(--border); font-weight: 500; }
-.table-row { font-size: 12px; border-bottom: 1px solid var(--border); transition: background 0.12s; text-decoration: none; color: inherit; cursor: pointer; }
+.table-header { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); border-bottom: 1px solid var(--border); font-weight: 600; }
+.table-row { font-size: 13px; border-bottom: 1px solid var(--border); transition: background 0.12s; text-decoration: none; color: inherit; cursor: pointer; }
 .table-row:last-child { border-bottom: none; }
 .table-row:hover { background: var(--surface-2); }
 .table-row:hover .chevron { color: var(--teal); }
-.act-name-cell { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; }
+.act-name-cell { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; }
 .type-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.gps-badge { font-size: 10px; opacity: 0.7; margin-left: 2px; }
 .mono { font-family: var(--mono); }
 .muted { color: var(--text-muted); }
 .text-orange { color: var(--orange); }

@@ -236,14 +236,14 @@ onMounted(() => store.fetchProfile())
 <style scoped>
 .view { padding: 32px 40px; }
 .view-header { margin-bottom: 28px; }
-.view-title { font-size: 22px; font-weight: 600; }
-.view-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.view-title { font-size: 24px; font-weight: 600; }
+.view-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
 
 .section { margin-bottom: 28px; }
-.section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); font-weight: 500; margin-bottom: 14px; }
+.section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 600; margin-bottom: 14px; }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 28px; }
 .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 12px 8px; }
-.chart-note { font-size: 10px; color: var(--text-dim); font-family: var(--mono); margin-top: 8px; text-align: center; }
+.chart-note { font-size: 12px; color: var(--text-muted); font-family: var(--mono); margin-top: 8px; text-align: center; }
 
 /* Score de forme */
 .fitness-hero { display: grid; grid-template-columns: 240px 1fr; gap: 32px; align-items: start; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px; }
@@ -251,29 +251,29 @@ onMounted(() => store.fetchProfile())
 .score-ring { width: 140px; height: 140px; transform: rotate(-90deg); }
 .score-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
 .score-val { display: block; font-size: 36px; font-weight: 500; color: var(--text); line-height: 1; }
-.score-label { display: block; font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; }
+.score-label { display: block; font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
 
 .fitness-metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
 .fm-item { display: flex; flex-direction: column; gap: 4px; }
-.fm-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
-.fm-hint { font-size: 9px; color: var(--text-dim); text-transform: none; letter-spacing: 0; }
+.fm-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.fm-hint { font-size: 11px; color: var(--text-dim); text-transform: none; letter-spacing: 0; }
 .fm-value { font-size: 22px; font-family: var(--mono); font-weight: 500; color: var(--text); }
-.fm-unit { font-size: 11px; color: var(--text-muted); }
+.fm-unit { font-size: 12px; color: var(--text-muted); }
 
 /* Série */
 .streak-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .streak-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; text-align: center; }
 .streak-num { font-size: 40px; font-weight: 500; color: var(--teal); }
-.streak-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+.streak-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
 
 /* Records */
 .pb-list { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
-.pb-row { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; padding: 11px 16px; border-bottom: 1px solid var(--border); align-items: center; font-size: 12px; }
+.pb-row { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; padding: 11px 16px; border-bottom: 1px solid var(--border); align-items: center; font-size: 13px; }
 .pb-row:last-child { border-bottom: none; }
 .pb-key { color: var(--text-muted); }
 .pb-val { font-family: var(--mono); color: var(--teal); }
-.pb-date { font-size: 10px; }
-.empty-hint { padding: 24px; text-align: center; color: var(--text-dim); font-size: 12px; font-family: var(--mono); }
+.pb-date { font-size: 12px; }
+.empty-hint { padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px; font-family: var(--mono); }
 
 .mono { font-family: var(--mono); }
 .muted { color: var(--text-muted); }
