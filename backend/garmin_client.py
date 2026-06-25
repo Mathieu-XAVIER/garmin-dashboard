@@ -67,6 +67,21 @@ class GarminClient:
             logger.error(f"Erreur get_activity_details({activity_id}) : {e}")
             return {}
 
+    def get_activity_gps(self, activity_id):
+        """Récupère le tracé GPS d'une activité via l'API Garmin."""
+        try:
+            details = self.client.get_activity_details(activity_id)
+            if not details:
+                return None
+            geo = details.get("geoPolylineDTO") or {}
+            polyline = geo.get("polyline")
+            if polyline and isinstance(polyline, list):
+                return polyline
+            return None
+        except Exception as e:
+            logger.error(f"Erreur get_activity_gps({activity_id}) : {e}")
+            return None
+
     def get_activities_by_date(self, start_date, end_date):
         try:
             return self.client.get_activities_by_date(

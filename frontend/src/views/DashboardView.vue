@@ -115,17 +115,17 @@ onMounted(() => {
 <style scoped>
 .view { padding: 32px 40px; }
 .view-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 32px; }
-.view-title { font-size: 22px; font-weight: 600; color: var(--text); }
-.view-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; text-transform: capitalize; }
-.error-badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-family: var(--mono); background: var(--orange-dim); color: var(--orange); }
+.view-title { font-size: 24px; font-weight: 600; color: var(--text); }
+.view-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; text-transform: capitalize; }
+.error-badge { padding: 5px 14px; border-radius: 20px; font-size: 12px; font-family: var(--mono); background: var(--orange-dim); color: var(--orange); }
 .section { margin-bottom: 32px; }
-.section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); font-weight: 500; margin-bottom: 14px; }
+.section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 600; margin-bottom: 14px; }
 .section-header-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
 .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 12px 8px; }
 .card-list { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; padding: 4px 0; }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
-.hrv-status { font-size: 10px; font-family: var(--mono); padding: 3px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em; }
+.hrv-status { font-size: 12px; font-family: var(--mono); padding: 4px 12px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em; }
 .status-good    { background: var(--teal-dim); color: var(--teal); }
 .status-warn    { background: var(--orange-dim); color: var(--orange); }
 .status-neutral { background: var(--surface-2); color: var(--text-muted); }

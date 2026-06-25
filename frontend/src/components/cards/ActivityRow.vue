@@ -72,11 +72,11 @@ function formatDate(dt: string): string {
 
 .act-type-badge { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
 .act-info { flex: 1; min-width: 0; }
-.act-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.act-date { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+.act-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.act-date { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 .act-metrics { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
-.act-metric { display: flex; align-items: baseline; gap: 2px; font-family: var(--mono); font-size: 13px; }
-.unit { font-size: 10px; color: var(--text-muted); }
+.act-metric { display: flex; align-items: baseline; gap: 3px; font-family: var(--mono); font-size: 14px; }
+.unit { font-size: 12px; color: var(--text-muted); }
 .text-orange { color: var(--orange); }
 .chevron { font-size: 18px; color: var(--text-dim); transition: color 0.15s; margin-left: 4px; }
 </style>

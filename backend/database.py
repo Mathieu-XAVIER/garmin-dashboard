@@ -4,7 +4,7 @@ database.py — Modèles SQLAlchemy et initialisation SQLite
 
 from sqlalchemy import (
     create_engine, Column, Integer, Float, String,
-    DateTime, JSON, UniqueConstraint
+    DateTime, JSON, UniqueConstraint, text, inspect as sa_inspect
 )
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from datetime import datetime
@@ -40,6 +40,7 @@ class Activity(Base):
     anaerobic_training_effect = Column(Float)
     hr_zones = Column(JSON)
     raw = Column(JSON)
+    gps_track = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -125,3 +126,9 @@ def get_db():
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    inspector = sa_inspect(engine)
+    columns = [c["name"] for c in inspector.get_columns("activities")]
+    if "gps_track" not in columns:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE activities ADD COLUMN gps_track JSON"))
+            conn.commit()

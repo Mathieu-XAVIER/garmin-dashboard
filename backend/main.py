@@ -36,6 +36,7 @@ garmin_client = GarminClient(
 async def lifespan(app: FastAPI):
     logger.info("Démarrage de l'application…")
     init_db()
+    app.state.garmin_client = garmin_client
     logger.info("Base de données initialisée ✓")
     connected = garmin_client.connect()
     if connected:

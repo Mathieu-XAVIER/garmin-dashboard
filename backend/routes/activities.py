@@ -2,7 +2,7 @@
 routes/activities.py — Endpoints pour les activités sportives.
 """
 
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from datetime import date, timedelta
@@ -68,6 +68,65 @@ def get_activity(garmin_id: str, db: Session = Depends(get_db)):
     data["metrics_timeline"] = _extract_timeline(activity.raw)
 
     return data
+
+
+@router.get("/{garmin_id}/gps")
+def get_activity_gps(garmin_id: str, request: Request, db: Session = Depends(get_db)):
+    """Tracé GPS d'une activité (fetch on-demand, puis cache en DB)."""
+    activity = db.query(Activity).filter(Activity.garmin_id == garmin_id).first()
+    if not activity:
+        raise HTTPException(status_code=404, detail="Activité introuvable")
+
+    if activity.gps_track:
+        return {
+            "garmin_id": garmin_id,
+            "has_gps": True,
+            "track": activity.gps_track,
+            "start_end": _extract_start_end(activity),
+        }
+
+    raw = activity.raw or {}
+    if not raw.get("hasPolyline"):
+        return {"garmin_id": garmin_id, "has_gps": False, "track": []}
+
+    client = request.app.state.garmin_client
+    polyline = client.get_activity_gps(int(garmin_id))
+
+    if not polyline:
+        return {"garmin_id": garmin_id, "has_gps": False, "track": []}
+
+    track = [
+        {
+            "lat": pt.get("lat"),
+            "lon": pt.get("lon"),
+            "altitude": pt.get("altitude"),
+            "time": pt.get("time"),
+            "speed": pt.get("speed"),
+            "hr": pt.get("heartRate"),
+        }
+        for pt in polyline
+        if pt.get("lat") is not None and pt.get("lon") is not None
+    ]
+
+    activity.gps_track = track
+    db.commit()
+
+    return {
+        "garmin_id": garmin_id,
+        "has_gps": True,
+        "track": track,
+        "start_end": _extract_start_end(activity),
+    }
+
+
+def _extract_start_end(activity: Activity) -> dict:
+    raw = activity.raw or {}
+    return {
+        "start_lat": raw.get("startLatitude"),
+        "start_lon": raw.get("startLongitude"),
+        "end_lat": raw.get("endLatitude"),
+        "end_lon": raw.get("endLongitude"),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -174,6 +233,7 @@ def _serialize(a: Activity, include_raw: bool = False) -> dict:
         "aerobic_training_effect": a.aerobic_training_effect,
         "anaerobic_training_effect": a.anaerobic_training_effect,
         "hr_zones": a.hr_zones,
+        "has_gps": bool((a.raw or {}).get("hasPolyline")),
     }
     if include_raw:
         data["raw"] = a.raw
