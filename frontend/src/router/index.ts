@@ -10,7 +10,7 @@ const router = createRouter({
     { path: '/health',         name: 'health',          component: () => import('../views/HealthView.vue') },
     { path: '/sleep',          name: 'sleep',           component: () => import('../views/SleepView.vue') },
     { path: '/profile',        name: 'profile',         component: () => import('../views/ProfileView.vue') },
-    { path: '/handball',       name: 'handball',        component: () => import('../views/HandballPrepView.vue') },
+    { path: '/d/:slug',        name: 'custom-dashboard', component: () => import('../views/CustomDashboardView.vue') },
   ],
 })
 
