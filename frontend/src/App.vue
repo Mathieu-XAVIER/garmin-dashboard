@@ -62,22 +62,22 @@ function timeAgo(date: Date): string {
 .sidebar { width: 220px; height: 100vh; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 0; position: sticky; top: 0; flex-shrink: 0; overflow-y: auto; }
 .sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 0 20px 28px; border-bottom: 1px solid var(--border); }
 .logo-icon { font-size: 22px; color: var(--teal); line-height: 1; }
-.logo-text { font-family: var(--sans); font-size: 11px; color: var(--text-muted); line-height: 1.4; text-transform: uppercase; letter-spacing: 0.05em; }
-.logo-text strong { color: var(--text); font-weight: 600; font-size: 13px; text-transform: none; letter-spacing: 0; }
+.logo-text { font-family: var(--sans); font-size: 12px; color: var(--text-muted); line-height: 1.4; text-transform: uppercase; letter-spacing: 0.05em; }
+.logo-text strong { color: var(--text); font-weight: 600; font-size: 14px; text-transform: none; letter-spacing: 0; }
 
 .sidebar-nav { display: flex; flex-direction: column; gap: 2px; padding: 20px 12px; flex: 1; }
-.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--radius); color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: background 0.15s, color 0.15s; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius); color: var(--text-muted); text-decoration: none; font-size: 14px; font-weight: 500; transition: background 0.15s, color 0.15s; }
 .nav-item:hover { background: var(--surface-2); color: var(--text); }
 .nav-item.active { background: var(--teal-dim); color: var(--teal); }
 .nav-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
 
 .sidebar-footer { padding: 16px 12px 0; border-top: 1px solid var(--border); }
-.sync-btn { width: 100%; padding: 8px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-muted); font-family: var(--sans); font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: border-color 0.15s, color 0.15s; }
+.sync-btn { width: 100%; padding: 9px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-muted); font-family: var(--sans); font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: border-color 0.15s, color 0.15s; }
 .sync-btn:hover:not(:disabled) { border-color: var(--teal); color: var(--teal); }
 .sync-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .spinning { display: inline-block; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.last-sync { text-align: center; font-size: 10px; color: var(--text-dim); margin-top: 8px; font-family: var(--mono); }
+.last-sync { text-align: center; font-size: 12px; color: var(--text-muted); margin-top: 8px; font-family: var(--mono); }
 
 .main-content { flex: 1; overflow: auto; min-width: 0; }
 </style>

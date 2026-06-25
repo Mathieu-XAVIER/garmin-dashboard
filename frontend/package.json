@@ -11,8 +11,10 @@
     "type-check": "vue-tsc --build"
   },
   "dependencies": {
+    "@vue-leaflet/vue-leaflet": "^0.10.1",
     "apexcharts": "^5.15.2",
     "axios": "^1.18.0",
+    "leaflet": "^1.9.4",
     "pinia": "^3.0.4",
     "vue": "^3.5.38",
     "vue-router": "^5.1.0",
@@ -20,6 +22,7 @@
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.4",
+    "@types/leaflet": "^1.9.21",
     "@types/node": "^24.13.2",
     "@vitejs/plugin-vue": "^6.0.7",
     "@vue/tsconfig": "^0.9.1",

@@ -247,16 +247,16 @@ onMounted(() => store.fetchPrep())
 <style scoped>
 .view { padding: 32px 40px; }
 .view-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; }
-.view-title { font-size: 22px; font-weight: 600; }
-.view-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.view-title { font-size: 24px; font-weight: 600; }
+.view-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
 
 .player-badge { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
 .badge-name { font-size: 14px; font-weight: 600; color: var(--teal); text-transform: uppercase; letter-spacing: 0.1em; }
-.badge-detail { font-size: 11px; color: var(--text-muted); }
-.badge-warn { font-size: 10px; color: var(--orange); background: var(--orange-dim); padding: 2px 8px; border-radius: 10px; }
+.badge-detail { font-size: 12px; color: var(--text-muted); }
+.badge-warn { font-size: 12px; color: var(--orange); background: var(--orange-dim); padding: 3px 10px; border-radius: 10px; }
 
 .section { margin-bottom: 28px; }
-.section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); font-weight: 500; margin-bottom: 14px; }
+.section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 600; margin-bottom: 14px; }
 
 /* Global progress */
 .global-progress-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px 24px; }
@@ -265,31 +265,31 @@ onMounted(() => store.fetchPrep())
 .gp-week { font-size: 12px; color: var(--teal); }
 .gp-bar-wrap { height: 10px; background: var(--surface-2); border-radius: 5px; overflow: hidden; }
 .gp-bar { height: 100%; background: linear-gradient(90deg, var(--teal), #00B894); border-radius: 5px; transition: width 0.8s ease; }
-.gp-pct { text-align: right; font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+.gp-pct { text-align: right; font-size: 12px; color: var(--text-muted); margin-top: 6px; }
 
 /* Objectives */
 .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .obj-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .obj-icon { font-size: 24px; }
-.obj-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 500; }
+.obj-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 500; }
 .obj-progress-ring-wrap { position: relative; width: 100px; height: 100px; }
 .obj-ring { width: 100px; height: 100px; transform: rotate(-90deg); }
 .obj-ring-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
 .obj-val { display: block; font-size: 20px; font-weight: 500; color: var(--text); line-height: 1; }
-.obj-unit { display: block; font-size: 9px; color: var(--text-muted); margin-top: 2px; }
-.obj-count { font-size: 10px; color: var(--text-dim); }
+.obj-unit { display: block; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.obj-count { font-size: 12px; color: var(--text-dim); }
 
 /* Input */
 .input-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; }
 .input-row { display: flex; gap: 12px; align-items: flex-end; }
 .input-group { display: flex; flex-direction: column; gap: 4px; flex: 1; }
-.input-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+.input-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
 .input-field { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; color: var(--text); font-family: var(--mono); font-size: 12px; outline: none; }
 .input-field:focus { border-color: var(--teal); }
 .save-btn { padding: 8px 20px; background: var(--teal-dim); border: 1px solid var(--teal); border-radius: var(--radius); color: var(--teal); font-family: var(--sans); font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: background 0.15s; }
 .save-btn:hover:not(:disabled) { background: rgba(0, 212, 170, 0.2); }
 .save-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.save-msg { font-size: 11px; color: var(--teal); margin-top: 8px; }
+.save-msg { font-size: 12px; color: var(--teal); margin-top: 8px; }
 
 /* Weeks */
 .weeks-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
@@ -298,30 +298,30 @@ onMounted(() => store.fetchPrep())
 .week-card.week-future { opacity: 0.5; }
 .week-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
 .week-num { font-size: 14px; font-weight: 600; color: var(--teal); }
-.week-dates { font-size: 10px; color: var(--text-dim); }
+.week-dates { font-size: 12px; color: var(--text-dim); }
 
 .week-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
 .wm-item { text-align: center; }
 .wm-icon { font-size: 14px; display: block; }
 .wm-val { font-size: 14px; font-weight: 500; color: var(--text); display: block; }
-.wm-sub { font-size: 9px; color: var(--text-dim); display: block; }
+.wm-sub { font-size: 11px; color: var(--text-dim); display: block; }
 
 .week-runs { border-top: 1px solid var(--border); padding-top: 8px; }
-.run-row { display: flex; gap: 8px; align-items: center; padding: 4px 0; font-size: 11px; }
+.run-row { display: flex; gap: 8px; align-items: center; padding: 4px 0; font-size: 12px; }
 .run-date { color: var(--text-dim); min-width: 40px; }
 .run-name { color: var(--text-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .run-dist { color: var(--teal); }
-.run-hr { color: var(--orange); font-size: 10px; }
+.run-hr { color: var(--orange); font-size: 12px; }
 
 .week-exercises { border-top: 1px solid var(--border); padding-top: 8px; }
-.ex-row { display: flex; gap: 8px; align-items: center; padding: 4px 0; font-size: 11px; }
+.ex-row { display: flex; gap: 8px; align-items: center; padding: 4px 0; font-size: 12px; }
 .ex-date { color: var(--text-dim); min-width: 40px; }
 .ex-type { color: var(--text-muted); flex: 1; text-transform: capitalize; }
 .ex-reps { color: var(--purple); }
 .ex-del { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 0 4px; line-height: 1; }
 .ex-del:hover { color: var(--orange); }
 
-.week-empty { text-align: center; font-size: 11px; color: var(--text-dim); padding: 8px 0; }
+.week-empty { text-align: center; font-size: 12px; color: var(--text-dim); padding: 8px 0; }
 
 .error-state { padding: 64px; text-align: center; color: var(--text-muted); }
 
