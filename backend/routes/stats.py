@@ -7,20 +7,25 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from datetime import date, timedelta
 
-from database import get_db, Activity, DailyHealth, Sleep, HRV
+from database import get_db, Activity, DailyHealth, Sleep, HRV, User
+from auth import get_current_user
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
 
 @router.get("/summary")
-def global_summary(db: Session = Depends(get_db)):
-    total_activities = db.query(Activity).count()
-    total_distance = db.query(func.sum(Activity.distance_meters)).scalar() or 0
-    total_calories_sport = db.query(func.sum(Activity.calories)).scalar() or 0
-    last_rhr = db.query(DailyHealth.resting_heart_rate).filter(DailyHealth.resting_heart_rate.isnot(None)).order_by(desc(DailyHealth.date)).limit(1).scalar()
-    last_hrv = db.query(HRV.last_night_avg).filter(HRV.last_night_avg.isnot(None)).order_by(desc(HRV.date)).limit(1).scalar()
-    last_sleep_score = db.query(Sleep.sleep_score).filter(Sleep.sleep_score.isnot(None)).order_by(desc(Sleep.date)).limit(1).scalar()
-    last_vo2max = db.query(Activity.vo2max).filter(Activity.vo2max.isnot(None)).order_by(desc(Activity.start_time)).limit(1).scalar()
+def global_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    uid = current_user.id
+    total_activities = db.query(Activity).filter(Activity.user_id == uid).count()
+    total_distance = db.query(func.sum(Activity.distance_meters)).filter(Activity.user_id == uid).scalar() or 0
+    total_calories_sport = db.query(func.sum(Activity.calories)).filter(Activity.user_id == uid).scalar() or 0
+    last_rhr = db.query(DailyHealth.resting_heart_rate).filter(DailyHealth.user_id == uid, DailyHealth.resting_heart_rate.isnot(None)).order_by(desc(DailyHealth.date)).limit(1).scalar()
+    last_hrv = db.query(HRV.last_night_avg).filter(HRV.user_id == uid, HRV.last_night_avg.isnot(None)).order_by(desc(HRV.date)).limit(1).scalar()
+    last_sleep_score = db.query(Sleep.sleep_score).filter(Sleep.user_id == uid, Sleep.sleep_score.isnot(None)).order_by(desc(Sleep.date)).limit(1).scalar()
+    last_vo2max = db.query(Activity.vo2max).filter(Activity.user_id == uid, Activity.vo2max.isnot(None)).order_by(desc(Activity.start_time)).limit(1).scalar()
     return {
         "total_activities": total_activities,
         "total_distance_km": round(total_distance / 1000, 1) if total_distance else 0,
@@ -33,21 +38,29 @@ def global_summary(db: Session = Depends(get_db)):
 
 
 @router.get("/weekly")
-def weekly_stats(weeks: int = Query(12, ge=1, le=52), db: Session = Depends(get_db)):
+def weekly_stats(
+    weeks: int = Query(12, ge=1, le=52),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    uid = current_user.id
     result = []
     today = date.today()
     for i in range(weeks - 1, -1, -1):
         week_end = today - timedelta(weeks=i)
         week_start = week_end - timedelta(days=6)
         acts = db.query(Activity).filter(
+            Activity.user_id == uid,
             Activity.start_time >= week_start.isoformat(),
             Activity.start_time <= week_end.isoformat(),
         ).all()
         health_rows = db.query(DailyHealth).filter(
+            DailyHealth.user_id == uid,
             DailyHealth.date >= week_start.isoformat(),
             DailyHealth.date <= week_end.isoformat(),
         ).all()
         sleep_rows = db.query(Sleep).filter(
+            Sleep.user_id == uid,
             Sleep.date >= week_start.isoformat(),
             Sleep.date <= week_end.isoformat(),
         ).all()
@@ -66,9 +79,16 @@ def weekly_stats(weeks: int = Query(12, ge=1, le=52), db: Session = Depends(get_
 
 
 @router.get("/training-load")
-def training_load(days: int = Query(42, ge=7, le=180), db: Session = Depends(get_db)):
+def training_load(
+    days: int = Query(42, ge=7, le=180),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     since = (date.today() - timedelta(days=days)).isoformat()
-    acts = db.query(Activity).filter(Activity.start_time >= since).order_by(Activity.start_time).all()
+    acts = db.query(Activity).filter(
+        Activity.user_id == current_user.id,
+        Activity.start_time >= since,
+    ).order_by(Activity.start_time).all()
     by_day = {}
     for a in acts:
         if a.start_time:

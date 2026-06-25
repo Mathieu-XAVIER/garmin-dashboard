@@ -8,7 +8,8 @@ from sqlalchemy import desc
 from datetime import date, timedelta
 from typing import Optional
 
-from database import get_db, Activity
+from database import get_db, Activity, User
+from auth import get_current_user
 
 router = APIRouter(prefix="/activities", tags=["activities"])
 
@@ -19,9 +20,9 @@ def list_activities(
     offset: int = Query(0, ge=0),
     activity_type: Optional[str] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    """Liste paginée des activités, les plus récentes en premier."""
-    query = db.query(Activity).order_by(desc(Activity.start_time))
+    query = db.query(Activity).filter(Activity.user_id == current_user.id).order_by(desc(Activity.start_time))
     if activity_type:
         query = query.filter(Activity.activity_type == activity_type)
     total = query.count()
@@ -30,12 +31,15 @@ def list_activities(
 
 
 @router.get("/recent")
-def recent_activities(days: int = Query(30, ge=1, le=365), db: Session = Depends(get_db)):
-    """Activités des N derniers jours."""
+def recent_activities(
+    days: int = Query(30, ge=1, le=365),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     since = date.today() - timedelta(days=days)
     items = (
         db.query(Activity)
-        .filter(Activity.start_time >= since.isoformat())
+        .filter(Activity.user_id == current_user.id, Activity.start_time >= since.isoformat())
         .order_by(desc(Activity.start_time))
         .all()
     )
@@ -43,37 +47,45 @@ def recent_activities(days: int = Query(30, ge=1, le=365), db: Session = Depends
 
 
 @router.get("/types")
-def activity_types(db: Session = Depends(get_db)):
-    """Liste des types d'activités disponibles."""
-    rows = db.query(Activity.activity_type).distinct().all()
+def activity_types(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    rows = db.query(Activity.activity_type).filter(Activity.user_id == current_user.id).distinct().all()
     return [r[0] for r in rows if r[0]]
 
 
 @router.get("/{garmin_id}")
-def get_activity(garmin_id: str, db: Session = Depends(get_db)):
-    """Détail complet d'une activité avec zones FC et splits."""
-    activity = db.query(Activity).filter(Activity.garmin_id == garmin_id).first()
+def get_activity(
+    garmin_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    activity = db.query(Activity).filter(
+        Activity.garmin_id == garmin_id,
+        Activity.user_id == current_user.id,
+    ).first()
     if not activity:
         raise HTTPException(status_code=404, detail="Activité introuvable")
 
     data = _serialize(activity, include_raw=True)
-
-    # Extraire les zones FC depuis le payload raw
     data["hr_zones_detail"] = _extract_hr_zones(activity.raw)
-
-    # Extraire les splits
     data["splits"] = _extract_splits(activity.raw)
-
-    # Extraire les données GPS simplifiées (élévation, vitesse)
     data["metrics_timeline"] = _extract_timeline(activity.raw)
-
     return data
 
 
 @router.get("/{garmin_id}/gps")
-def get_activity_gps(garmin_id: str, request: Request, db: Session = Depends(get_db)):
-    """Tracé GPS d'une activité (fetch on-demand, puis cache en DB)."""
-    activity = db.query(Activity).filter(Activity.garmin_id == garmin_id).first()
+def get_activity_gps(
+    garmin_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    activity = db.query(Activity).filter(
+        Activity.garmin_id == garmin_id,
+        Activity.user_id == current_user.id,
+    ).first()
     if not activity:
         raise HTTPException(status_code=404, detail="Activité introuvable")
 
@@ -89,7 +101,11 @@ def get_activity_gps(garmin_id: str, request: Request, db: Session = Depends(get
     if not raw.get("hasPolyline"):
         return {"garmin_id": garmin_id, "has_gps": False, "track": []}
 
-    client = request.app.state.garmin_client
+    manager = request.app.state.garmin_manager
+    client = manager.get_client(current_user)
+    if not client:
+        raise HTTPException(400, "Identifiants Garmin non configurés")
+
     polyline = client.get_activity_gps(int(garmin_id))
 
     if not polyline:
@@ -129,20 +145,12 @@ def _extract_start_end(activity: Activity) -> dict:
     }
 
 
-# ---------------------------------------------------------------------------
-# Parsers raw → structures utiles
-# ---------------------------------------------------------------------------
-
 def _extract_hr_zones(raw: dict | None) -> list[dict]:
-    """Zones FC avec durée en secondes et pourcentage."""
     if not raw:
         return []
 
-    # Les zones sont souvent dans heartRateZones ou timeInHrZone
     zones_raw = raw.get("heartRateZones") or raw.get("timeInHrZone") or []
-
     if not zones_raw:
-        # Essayer dans metricDescriptors / activityDetailMetrics
         return []
 
     result = []
@@ -166,7 +174,6 @@ def _extract_hr_zones(raw: dict | None) -> list[dict]:
 
 
 def _extract_splits(raw: dict | None) -> list[dict]:
-    """Splits kilométriques ou par mile."""
     if not raw:
         return []
 
@@ -195,12 +202,9 @@ def _extract_splits(raw: dict | None) -> list[dict]:
 
 
 def _extract_timeline(raw: dict | None) -> dict:
-    """Données de timeline simplifiées : vitesse et élévation."""
     if not raw:
         return {}
 
-    # Les données détaillées sont rarement dans le résumé d'activité
-    # On extrait ce qui est disponible dans le payload
     return {
         "avg_speed": raw.get("averageSpeed"),
         "max_speed": raw.get("maxSpeed"),
