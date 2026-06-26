@@ -88,8 +88,11 @@
     <NavSettings v-if="navStore.settingsOpen" @close="navStore.settingsOpen = false" />
 
     <main class="main-content" :class="{ 'full-width': !showSidebar }">
+      <GarminSetupBanner v-if="showSidebar" />
       <RouterView />
     </main>
+
+    <NotificationToast />
 
     <!-- Bottom nav mobile -->
     <nav v-if="showSidebar" class="bottom-nav">
@@ -108,11 +111,15 @@ import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { useGarminStore } from './stores/garmin'
 import { useAuthStore } from './stores/auth'
 import { useNavStore } from './stores/nav'
+import { useNotificationsStore } from './stores/notifications'
 import NavSettings from './components/sidebar/NavSettings.vue'
+import NotificationToast from './components/NotificationToast.vue'
+import GarminSetupBanner from './components/GarminSetupBanner.vue'
 
 const store = useGarminStore()
 const authStore = useAuthStore()
 const navStore = useNavStore()
+const notifStore = useNotificationsStore()
 const route = useRoute()
 const syncing = ref(false)
 const mobileMenuOpen = ref(false)
@@ -126,6 +133,9 @@ async function handleSync() {
   try {
     await store.triggerSync(7)
     await store.loadDashboard()
+    notifStore.success('Synchronisation terminée')
+  } catch {
+    notifStore.error('Erreur lors de la synchronisation')
   } finally {
     syncing.value = false
   }
