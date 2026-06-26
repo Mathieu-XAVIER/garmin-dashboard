@@ -9,9 +9,14 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
-from database import get_db, User, CustomDashboard
+from database import (
+    get_db, User, CustomDashboard, Activity, DailyHealth,
+    Sleep, HRV, PrepExerciseLog, CustomExerciseLog, DashboardWidget,
+)
 from auth import (
     verify_password,
     get_password_hash,
@@ -24,6 +29,7 @@ from scheduler import sync_user
 
 logger = logging.getLogger(__name__)
 
+limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
@@ -38,7 +44,8 @@ class GarminCredentialsInput(BaseModel):
 
 
 @router.post("/register")
-def register(body: RegisterInput, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def register(request: Request, body: RegisterInput, db: Session = Depends(get_db)):
     if len(body.password) < 6:
         raise HTTPException(400, "Le mot de passe doit contenir au moins 6 caractères")
 
@@ -59,7 +66,8 @@ def register(body: RegisterInput, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def login(request: Request, form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == form.username).first()
     if not user or not verify_password(form.password, user.hashed_password):
         raise HTTPException(
@@ -148,3 +156,27 @@ def delete_garmin_credentials(
     current_user.garmin_password_encrypted = None
     db.commit()
     return {"status": "ok"}
+
+
+@router.delete("/account")
+def delete_account(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Supprime le compte et toutes les données associées (RGPD)."""
+    user_id = current_user.id
+
+    # Supprimer les widgets des dashboards de l'utilisateur
+    dashboards = db.query(CustomDashboard).filter_by(user_id=user_id).all()
+    for dashboard in dashboards:
+        db.query(DashboardWidget).filter_by(dashboard_id=dashboard.id).delete()
+        db.query(CustomExerciseLog).filter_by(dashboard_id=dashboard.id).delete()
+    db.query(CustomDashboard).filter_by(user_id=user_id).delete()
+
+    # Supprimer toutes les données de l'utilisateur
+    for model in (Activity, DailyHealth, Sleep, HRV, PrepExerciseLog, CustomExerciseLog):
+        db.query(model).filter_by(user_id=user_id).delete()
+
+    db.delete(current_user)
+    db.commit()
+    return {"status": "ok", "message": "Compte et données supprimés"}

@@ -2,6 +2,8 @@
 database.py — Modèles SQLAlchemy et initialisation SQLite
 """
 
+import os
+
 from sqlalchemy import (
     create_engine, Column, Integer, Float, String,
     DateTime, JSON, ForeignKey, UniqueConstraint, text, inspect as sa_inspect
@@ -9,9 +11,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from datetime import datetime
 
-DATABASE_URL = "sqlite:///./garmin.db"
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./garmin.db")
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
