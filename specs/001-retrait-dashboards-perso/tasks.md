@@ -51,7 +51,7 @@ suivant, sans erreur visible.
 **⚠️ CRITICAL**: T005 et T006 conditionnent la phase 6. Sans eux, la migration destructive est
 irréversible et invérifiable.
 
-- [ ] T004 Arrêter le backend et le frontend avant toute manipulation de `backend/garmin.db` — **reporté juste avant T040** : la sauvegarde T006 a été prise à chaud via l'API `backup` de SQLite, cohérente sans arrêt de service
+- [X] T004 Arrêter le backend et le frontend avant toute manipulation de `backend/garmin.db` — **reporté juste avant T040** : la sauvegarde T006 a été prise à chaud via l'API `backup` de SQLite, cohérente sans arrêt de service
 - [X] T005 Relever et consigner les compteurs témoins des tables conservées (`users`, `activities`, `daily_health`, `sleep`, `hrv`) de `backend/garmin.db` selon l'étape 1 de [quickstart.md](./quickstart.md) — relevé : users=3, activities=20, daily_health=394, sleep=394, hrv=77
 - [X] T006 Copier `backend/garmin.db` vers un emplacement **hors du dépôt** (ex. `~/sauvegardes/garmin-avant-retrait-dashboards.db`) et vérifier la copie lisible — FR-011a — fait : 13,3 Mo, intégrité vérifiée
 - [X] T007 Vérifier que la sauvegarde n'est pas dans l'arborescence du projet ni visible par `git status` — Principe II
@@ -152,25 +152,25 @@ rien.
 
 ### Retrait des modèles et de la migration automatique
 
-- [ ] T034 [US3] Supprimer les classes `CustomDashboard`, `DashboardWidget`, `CustomExerciseLog` (lignes ~155-198) et `PrepExerciseLog` (ligne ~140) de `backend/database.py`
-- [ ] T035 [US3] **Supprimer la fonction `_migrate_handball_to_custom_dashboards()` (lignes ~209-299, ~91 lignes) et son appel conditionnel dans `init_db()`** dans `backend/database.py` — sans quoi le DROP de T040 sera annulé au démarrage suivant (research.md D3)
-- [ ] T036 [US3] Retirer `"prep_exercise_log"` de la liste `tables_to_migrate` de la migration `user_id` dans `init_db()` de `backend/database.py` — conserver les autres tables
-- [ ] T037 [US3] Vérifier que le backend démarre sans erreur et qu'une installation neuve (base absente) ne crée aucune des quatre tables — FR-010, SC-005
+- [X] T034 [US3] Supprimer les classes `CustomDashboard`, `DashboardWidget`, `CustomExerciseLog` (lignes ~155-198) et `PrepExerciseLog` (ligne ~140) de `backend/database.py`
+- [X] T035 [US3] **Supprimer la fonction `_migrate_handball_to_custom_dashboards()` (lignes ~209-299, ~91 lignes) et son appel conditionnel dans `init_db()`** dans `backend/database.py` — sans quoi le DROP de T040 sera annulé au démarrage suivant (research.md D3)
+- [X] T036 [US3] Retirer `"prep_exercise_log"` de la liste `tables_to_migrate` de la migration `user_id` dans `init_db()` de `backend/database.py` — conserver les autres tables
+- [X] T037 [US3] Vérifier que le backend démarre sans erreur et qu'une installation neuve (base absente) ne crée aucune des quatre tables — FR-010, SC-005
 
 ### Migration destructive
 
-- [ ] T038 [US3] Créer `backend/scripts/drop_dashboards.py` : script one-shot, jamais appelé au démarrage, qui relève les compteurs des tables conservées, exécute `DROP TABLE IF EXISTS` sur `custom_exercise_log`, `dashboard_widgets`, `custom_dashboards`, `prep_exercise_log` dans cet ordre, relève à nouveau les compteurs et échoue bruyamment si l'un d'eux a changé — voir [data-model.md](./data-model.md)
-- [ ] T039 [US3] Confirmer que T035 est bien appliqué et que la sauvegarde de T006 existe, avant toute exécution destructive
-- [ ] T040 [US3] Exécuter `python3 scripts/drop_dashboards.py` depuis `backend/` — les quatre tables sont supprimées, les compteurs conservés inchangés
-- [ ] T041 [US3] Vérifier que le schéma de `backend/garmin.db` ne contient plus aucune des quatre tables — étape 4 de [quickstart.md](./quickstart.md), SC-008
-- [ ] T042 [US3] Redémarrer le backend puis répéter la vérification T041 — aucune table recréée, SC-009
-- [ ] T043 [US3] Comparer les compteurs des tables conservées avec les témoins de T005 — identité stricte exigée, SC-008
+- [X] T038 [US3] Créer `backend/scripts/drop_dashboards.py` : script one-shot, jamais appelé au démarrage, qui relève les compteurs des tables conservées, exécute `DROP TABLE IF EXISTS` sur `custom_exercise_log`, `dashboard_widgets`, `custom_dashboards`, `prep_exercise_log` dans cet ordre, relève à nouveau les compteurs et échoue bruyamment si l'un d'eux a changé — voir [data-model.md](./data-model.md)
+- [X] T039 [US3] Confirmer que T035 est bien appliqué et que la sauvegarde de T006 existe, avant toute exécution destructive
+- [X] T040 [US3] Exécuter `python3 scripts/drop_dashboards.py` depuis `backend/` — les quatre tables sont supprimées, les compteurs conservés inchangés
+- [X] T041 [US3] Vérifier que le schéma de `backend/garmin.db` ne contient plus aucune des quatre tables — étape 4 de [quickstart.md](./quickstart.md), SC-008
+- [X] T042 [US3] Redémarrer le backend puis répéter la vérification T041 — aucune table recréée, SC-009
+- [X] T043 [US3] Comparer les compteurs des tables conservées avec les témoins de T005 — identité stricte exigée, SC-008
 
 ### Documentation
 
-- [ ] T044 [P] [US3] Retirer les mentions des dashboards personnalisés, des widgets et de la prépa handball de `README.md` : liste des fonctionnalités (lignes ~23-24), arborescence (`routes/handball.py`, `stores/`, `views/`, `components/widgets/`, `components/dashboard-editor/`) et tableau des données disponibles
-- [ ] T045 [P] [US3] Retirer les mentions de `handball.py`, du store `handball`, des composants `widgets/` et `dashboard-editor/`, et des modèles `PrepExerciseLog` / dashboards de `CLAUDE.md` — sections Architecture, `routes/`, Stores Pinia, Composants
-- [ ] T046 [US3] Vérifier qu'une recherche de `widget`, `dashboard-editor`, `custom_dashboard` et `handball` dans `README.md` et `CLAUDE.md` ne retourne aucune occurrence, hormis les mentions du dashboard principal sans rapport — SC-007
+- [X] T044 [P] [US3] Retirer les mentions des dashboards personnalisés, des widgets et de la prépa handball de `README.md` : liste des fonctionnalités (lignes ~23-24), arborescence (`routes/handball.py`, `stores/`, `views/`, `components/widgets/`, `components/dashboard-editor/`) et tableau des données disponibles
+- [X] T045 [P] [US3] Retirer les mentions de `handball.py`, du store `handball`, des composants `widgets/` et `dashboard-editor/`, et des modèles `PrepExerciseLog` / dashboards de `CLAUDE.md` — sections Architecture, `routes/`, Stores Pinia, Composants
+- [X] T046 [US3] Vérifier qu'une recherche de `widget`, `dashboard-editor`, `custom_dashboard` et `handball` dans `README.md` et `CLAUDE.md` ne retourne aucune occurrence, hormis les mentions du dashboard principal sans rapport — SC-007
 
 **Checkpoint**: Le projet ne conserve plus aucune trace de la fonctionnalité
 

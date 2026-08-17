@@ -41,7 +41,7 @@ Monorepo à deux dossiers : `backend/` (Python/FastAPI) et `frontend/` (Vue 3/Vi
 - **`auth.py`** — Utilitaires d'authentification : JWT (python-jose HS256), hachage bcrypt (passlib), chiffrement Fernet des mots de passe Garmin, dépendance `get_current_user`.
 - **`garmin_client.py`** — Wrapper `python-garminconnect` avec reconnexion automatique et cooldown de 5 min après échec.
 - **`garmin_manager.py`** — Pool de `GarminClient` par utilisateur. Cache les instances, les invalide au changement de credentials.
-- **`database.py`** — Modèles SQLAlchemy (User, Activity, DailyHealth, Sleep, HRV, PrepExerciseLog) et session SQLite. Toutes les tables de données ont un `user_id` FK vers `users`. La DB est `backend/garmin.db`.
+- **`database.py`** — Modèles SQLAlchemy (User, Activity, DailyHealth, Sleep, HRV) et session SQLite. Toutes les tables de données ont un `user_id` FK vers `users`. La DB est `backend/garmin.db`.
 - **`scheduler.py`** — `sync_all_users()` itère les utilisateurs avec credentials Garmin et appelle `sync_user()` pour chacun. APScheduler le relance toutes les N minutes.
 - **`routes/`** — Chaque fichier est un `APIRouter` monté dans `main.py` :
   - `auth.py` (`/auth`) — inscription, connexion, `/auth/me`, gestion credentials Garmin (PUT/DELETE)
@@ -49,12 +49,12 @@ Monorepo à deux dossiers : `backend/` (Python/FastAPI) et `frontend/` (Vue 3/Vi
   - `health.py` (`/health`) — santé quotidienne, sommeil, HRV (protégé, filtré par user_id)
   - `stats.py` (`/stats`) — résumé global, stats hebdomadaires, charge d'entraînement (protégé, filtré par user_id)
   - `profile.py` (`/profile`) — score de forme composite, historique VO2max, CTL/ATL, records perso, streak (protégé, filtré par user_id)
-  - `handball.py` (`/handball`) — suivi prépa physique handball (protégé, filtré par user_id)
+  - `preferences.py` (`/preferences`) — préférences de navigation, masquage des onglets (protégé, filtré par user_id)
 
 ### Frontend
 
 - **`api.ts`** — Instance axios partagée avec intercepteurs : ajoute le Bearer token, redirige vers `/login` si 401.
-- **Stores Pinia** : `auth.ts` (inscription, connexion, gestion credentials Garmin), `garmin.ts` (store principal), `profile.ts`, `handball.ts`. Tous utilisent l'instance `api` partagée.
+- **Stores Pinia** : `auth.ts` (inscription, connexion, gestion credentials Garmin), `garmin.ts` (store principal), `profile.ts`, `nav.ts` (masquage des onglets), `notifications.ts`. Tous utilisent l'instance `api` partagée.
 - **Router** : lazy-loaded views avec guard `beforeEach` — redirige vers `/login` si pas de token. Route `/login` marquée `meta: { public: true }`.
 - **Composants** : `components/charts/` (AreaChart, BarChart, DonutChart, LineChart wrappant ApexCharts), `components/cards/` (MetricCard, ActivityRow), SkeletonLoader, EmptyState.
 - **Alias** : `@` → `frontend/src/` (configuré dans vite.config.ts).

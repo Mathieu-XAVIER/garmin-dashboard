@@ -20,8 +20,6 @@ Dashboard web multi-utilisateurs pour visualiser ses données Garmin Connect. Al
 - Santé quotidienne : steps, calories, stress, body battery, FC repos
 - Sommeil : score, phases (profond/léger/REM), SpO2
 - Profil : score de forme composite, CTL/ATL/TSB, VO2max, records personnels
-- Prépa handball : suivi d'objectifs course + exercices (pompes, squats, abdos)
-- Dashboards personnalisés : widgets configurables (métriques, graphiques, objectifs, exercices)
 - Navigation personnalisable (masquer/afficher les onglets)
 - Interface responsive : bottom nav mobile, menu hamburger, tableaux scrollables, modals adaptés
 
@@ -97,7 +95,9 @@ garmin-dashboard/
 │   │   ├── health.py        # /health — santé quotidienne, sommeil, HRV
 │   │   ├── stats.py         # /stats — résumé, stats hebdo, charge d'entraînement
 │   │   ├── profile.py       # /profile — forme, VO2max, CTL/ATL, records, streak
-│   │   └── handball.py      # /handball — suivi prépa physique handball
+│   │   └── preferences.py   # /preferences — préférences de navigation
+│   ├── scripts/
+│   │   └── drop_dashboards.py  # Migration one-shot : retrait des tables dashboards
 │   ├── requirements.txt
 │   └── .env.example
 └── frontend/
@@ -106,14 +106,12 @@ garmin-dashboard/
     │   ├── api.ts            # Instance axios (Bearer token, redirect 401)
     │   ├── assets/main.css   # Design tokens, reset, responsive
     │   ├── router/           # Routes lazy-loaded avec guard auth
-    │   ├── stores/           # Pinia : auth, garmin, profile, handball, nav, dashboards
-    │   ├── views/            # Dashboard, Activities, Health, Sleep, Profile, Handball, Custom
+    │   ├── stores/           # Pinia : auth, garmin, profile, nav, notifications
+    │   ├── views/            # Dashboard, Activities, ActivityDetail, Health, Sleep, Profile
     │   └── components/
     │       ├── charts/       # AreaChart, BarChart, DonutChart, LineChart (ApexCharts)
     │       ├── cards/        # MetricCard, ActivityRow
     │       ├── maps/         # ActivityMap (Leaflet)
-    │       ├── widgets/      # WidgetRenderer, MetricWidget, ChartWidget, ObjectiveWidget…
-    │       ├── dashboard-editor/  # WidgetAddModal, DashboardCreateModal, DataSourcePicker
     │       └── sidebar/      # NavSettings
     └── index.html            # Viewport mobile, PWA meta tags
 ```
