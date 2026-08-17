@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/api'
 import router from '@/router'
-import { useNavStore, type NavDashboard } from './nav'
+import { useNavStore } from './nav'
 
 interface AuthUser {
   id: number
@@ -11,7 +11,6 @@ interface AuthUser {
   garmin_email: string | null
   created_at: string
   nav_preferences?: { hidden_tabs?: string[] } | null
-  custom_dashboards?: NavDashboard[]
 }
 
 export const useAuthStore = defineStore('auth', () => {

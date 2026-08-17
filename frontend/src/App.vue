@@ -13,13 +13,6 @@
           <span class="nav-icon">{{ tab.icon }}</span><span>{{ tab.label }}</span>
         </RouterLink>
 
-        <div v-if="navStore.customDashboards.length" class="nav-separator"></div>
-
-        <RouterLink v-for="dash in navStore.customDashboards" :key="dash.slug"
-          :to="`/d/${dash.slug}`" class="nav-item" active-class="active">
-          <span class="nav-icon">{{ dash.icon || '◇' }}</span><span>{{ dash.name }}</span>
-        </RouterLink>
-
         <button class="nav-item nav-add" @click="navStore.settingsOpen = true">
           <span class="nav-icon">+</span><span>Personnaliser</span>
         </button>
@@ -64,11 +57,6 @@
             <RouterLink v-for="tab in navStore.nativeTabs" :key="tab.id"
               :to="tab.to" class="nav-item" active-class="active" @click="mobileMenuOpen = false">
               <span class="nav-icon">{{ tab.icon }}</span><span>{{ tab.label }}</span>
-            </RouterLink>
-            <div v-if="navStore.customDashboards.length" class="nav-separator"></div>
-            <RouterLink v-for="dash in navStore.customDashboards" :key="dash.slug"
-              :to="`/d/${dash.slug}`" class="nav-item" active-class="active" @click="mobileMenuOpen = false">
-              <span class="nav-icon">{{ dash.icon || '◇' }}</span><span>{{ dash.name }}</span>
             </RouterLink>
             <button class="nav-item nav-add" @click="navStore.settingsOpen = true; mobileMenuOpen = false">
               <span class="nav-icon">+</span><span>Personnaliser</span>
@@ -169,7 +157,6 @@ function timeAgo(date: Date): string {
 .nav-item.active { background: var(--teal-dim); color: var(--teal); }
 .nav-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
 
-.nav-separator { height: 1px; background: var(--border); margin: 8px 0; }
 .nav-add { color: var(--text-dim); font-size: 13px; border: none; background: none; cursor: pointer; width: 100%; text-align: left; }
 .nav-add:hover { background: var(--surface-2); color: var(--teal); }
 

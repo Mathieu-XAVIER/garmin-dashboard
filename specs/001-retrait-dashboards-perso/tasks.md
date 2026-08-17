@@ -38,9 +38,9 @@ suivant, sans erreur visible.
 
 **Purpose**: Isoler le travail et figer l'état de départ
 
-- [ ] T001 Committer l'état actuel du dépôt (installation spec-kit, `.specify/`, `.claude/skills/`, `.gitignore`, `CLAUDE.md`, `specs/`) sur `main` avant toute modification
-- [ ] T002 Créer et basculer sur la branche `001-retrait-dashboards-perso` depuis `main`
-- [ ] T003 Vérifier que l'application démarre et fonctionne avant modification : backend sur `:8000`, frontend sur `:5173`, connexion réussie sur un compte
+- [X] T001 Committer l'état actuel du dépôt (installation spec-kit, `.specify/`, `.claude/skills/`, `.gitignore`, `CLAUDE.md`, `specs/`) sur `main` avant toute modification
+- [X] T002 Créer et basculer sur la branche `001-retrait-dashboards-perso` depuis `main`
+- [X] T003 Vérifier que l'application démarre et fonctionne avant modification : backend sur `:8000`, frontend sur `:5173`, connexion réussie sur un compte
 
 ---
 
@@ -51,10 +51,10 @@ suivant, sans erreur visible.
 **⚠️ CRITICAL**: T005 et T006 conditionnent la phase 6. Sans eux, la migration destructive est
 irréversible et invérifiable.
 
-- [ ] T004 Arrêter le backend et le frontend avant toute manipulation de `backend/garmin.db`
-- [ ] T005 Relever et consigner les compteurs témoins des tables conservées (`users`, `activities`, `daily_health`, `sleep`, `hrv`) de `backend/garmin.db` selon l'étape 1 de [quickstart.md](./quickstart.md)
-- [ ] T006 Copier `backend/garmin.db` vers un emplacement **hors du dépôt** (ex. `~/sauvegardes/garmin-avant-retrait-dashboards.db`) et vérifier la copie lisible — FR-011a
-- [ ] T007 Vérifier que la sauvegarde n'est pas dans l'arborescence du projet ni visible par `git status` — Principe II
+- [ ] T004 Arrêter le backend et le frontend avant toute manipulation de `backend/garmin.db` — **reporté juste avant T040** : la sauvegarde T006 a été prise à chaud via l'API `backup` de SQLite, cohérente sans arrêt de service
+- [X] T005 Relever et consigner les compteurs témoins des tables conservées (`users`, `activities`, `daily_health`, `sleep`, `hrv`) de `backend/garmin.db` selon l'étape 1 de [quickstart.md](./quickstart.md) — relevé : users=3, activities=20, daily_health=394, sleep=394, hrv=77
+- [X] T006 Copier `backend/garmin.db` vers un emplacement **hors du dépôt** (ex. `~/sauvegardes/garmin-avant-retrait-dashboards.db`) et vérifier la copie lisible — FR-011a — fait : 13,3 Mo, intégrité vérifiée
+- [X] T007 Vérifier que la sauvegarde n'est pas dans l'arborescence du projet ni visible par `git status` — Principe II
 
 **Checkpoint**: Sauvegarde vérifiée et témoins consignés — le retrait peut commencer
 
@@ -74,22 +74,22 @@ les fichiers consommés (T012–T014), sinon l'application est cassée entre deu
 
 ### Nettoyage des consommateurs
 
-- [ ] T008 [US1] Retirer les 4 blocs de navigation des tableaux de bord personnalisés (séparateur + `RouterLink v-for` sur `navStore.customDashboards`, desktop lignes ~16-19 et mobile lignes ~68-70) **ainsi que la règle CSS `.nav-separator` (ligne ~172) devenue orpheline** dans `frontend/src/App.vue` — vérifié : aucun autre usage de cette classe
-- [ ] T009 [US1] Retirer la section « Tableaux de bord », le bouton « + Nouveau tableau de bord », l'import de `DashboardCreateModal`, l'import de `useDashboardsStore`, les fonctions `handleDeleteDashboard` et `onDashboardCreated`, l'usage de `useRouter` s'il devient inutile, et les styles `.nsp-dash-*` / `.nsp-create-btn` devenus orphelins dans `frontend/src/components/sidebar/NavSettings.vue` — conserver intégralement la section « Onglets natifs », `isHidden` et `toggleTab`
-- [ ] T010 [P] [US1] Retirer l'interface `NavDashboard`, l'état `customDashboards`, les fonctions `addDashboardToNav`, `removeDashboardFromNav`, `updateDashboardInNav`, leur exposition dans le `return`, et le paramètre `custom_dashboards` de `syncFromAuth` dans `frontend/src/stores/nav.ts` — conserver `hiddenTabs`, `nativeTabs`, `fetchPreferences`, `updateHiddenTabs`
-- [ ] T011 [P] [US1] Retirer l'import de `NavDashboard` et le champ `custom_dashboards?: NavDashboard[]` du type utilisateur dans `frontend/src/stores/auth.ts`
-- [ ] T012 [US1] Remplacer la route `/d/:slug` par une redirection vers `/` dans `frontend/src/router/index.ts` — FR-005, ne pas supprimer sèchement (écran blanc, voir research.md D4)
+- [X] T008 [US1] Retirer les 4 blocs de navigation des tableaux de bord personnalisés (séparateur + `RouterLink v-for` sur `navStore.customDashboards`, desktop lignes ~16-19 et mobile lignes ~68-70) **ainsi que la règle CSS `.nav-separator` (ligne ~172) devenue orpheline** dans `frontend/src/App.vue` — vérifié : aucun autre usage de cette classe
+- [X] T009 [US1] Retirer la section « Tableaux de bord », le bouton « + Nouveau tableau de bord », l'import de `DashboardCreateModal`, l'import de `useDashboardsStore`, les fonctions `handleDeleteDashboard` et `onDashboardCreated`, l'usage de `useRouter` s'il devient inutile, et les styles `.nsp-dash-*` / `.nsp-create-btn` devenus orphelins dans `frontend/src/components/sidebar/NavSettings.vue` — conserver intégralement la section « Onglets natifs », `isHidden` et `toggleTab`
+- [X] T010 [P] [US1] Retirer l'interface `NavDashboard`, l'état `customDashboards`, les fonctions `addDashboardToNav`, `removeDashboardFromNav`, `updateDashboardInNav`, leur exposition dans le `return`, et le paramètre `custom_dashboards` de `syncFromAuth` dans `frontend/src/stores/nav.ts` — conserver `hiddenTabs`, `nativeTabs`, `fetchPreferences`, `updateHiddenTabs`
+- [X] T011 [P] [US1] Retirer l'import de `NavDashboard` et le champ `custom_dashboards?: NavDashboard[]` du type utilisateur dans `frontend/src/stores/auth.ts`
+- [X] T012 [US1] Remplacer la route `/d/:slug` par une redirection vers `/` dans `frontend/src/router/index.ts` — FR-005, ne pas supprimer sèchement (écran blanc, voir research.md D4)
 
 ### Suppression des fichiers dédiés
 
-- [ ] T013 [P] [US1] Supprimer les 6 composants de `frontend/src/components/widgets/` : `ActivityListWidget.vue`, `ChartWidget.vue`, `ExerciseTrackerWidget.vue`, `MetricWidget.vue`, `ObjectiveWidget.vue`, `WidgetRenderer.vue`
-- [ ] T014 [P] [US1] Supprimer les 3 composants de `frontend/src/components/dashboard-editor/` : `DashboardCreateModal.vue`, `DataSourcePicker.vue`, `WidgetAddModal.vue`
-- [ ] T015 [P] [US1] Supprimer `frontend/src/views/CustomDashboardView.vue`
-- [ ] T016 [P] [US1] Supprimer `frontend/src/stores/dashboards.ts`
+- [X] T013 [P] [US1] Supprimer les 6 composants de `frontend/src/components/widgets/` : `ActivityListWidget.vue`, `ChartWidget.vue`, `ExerciseTrackerWidget.vue`, `MetricWidget.vue`, `ObjectiveWidget.vue`, `WidgetRenderer.vue`
+- [X] T014 [P] [US1] Supprimer les 3 composants de `frontend/src/components/dashboard-editor/` : `DashboardCreateModal.vue`, `DataSourcePicker.vue`, `WidgetAddModal.vue`
+- [X] T015 [P] [US1] Supprimer `frontend/src/views/CustomDashboardView.vue`
+- [X] T016 [P] [US1] Supprimer `frontend/src/stores/dashboards.ts`
 
 ### Vérification
 
-- [ ] T017 [US1] Exécuter `npm run type-check` depuis `frontend/` — aucune erreur attendue (Principe III)
+- [X] T017 [US1] Exécuter `npm run type-check` depuis `frontend/` — aucune erreur attendue (Principe III)
 - [ ] T018 [US1] Vérifier manuellement sur deux comptes : navigation desktop et mobile réduites aux cinq onglets, panneau « Personnaliser » sans gestion de tableaux de bord, masquage d'onglet toujours fonctionnel et persistant, `/d/prepa-handball` redirige vers `/` sans écran blanc, console navigateur sans erreur
 
 **Checkpoint**: MVP atteint — la fonctionnalité a disparu du produit. Le backend reste en place,

@@ -2,14 +2,6 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/api'
 
-export interface NavDashboard {
-  id: number
-  name: string
-  slug: string
-  icon: string | null
-  position: number
-}
-
 interface NativeTab {
   id: string
   label: string
@@ -27,7 +19,6 @@ const NATIVE_TABS: NativeTab[] = [
 
 export const useNavStore = defineStore('nav', () => {
   const hiddenTabs = ref<string[]>([])
-  const customDashboards = ref<NavDashboard[]>([])
   const settingsOpen = ref(false)
 
   const allNativeTabs = computed(() => NATIVE_TABS)
@@ -36,9 +27,8 @@ export const useNavStore = defineStore('nav', () => {
     NATIVE_TABS.filter(t => !hiddenTabs.value.includes(t.id))
   )
 
-  function syncFromAuth(user: { nav_preferences?: { hidden_tabs?: string[] } | null, custom_dashboards?: NavDashboard[] }) {
+  function syncFromAuth(user: { nav_preferences?: { hidden_tabs?: string[] } | null }) {
     hiddenTabs.value = user.nav_preferences?.hidden_tabs ?? []
-    customDashboards.value = user.custom_dashboards ?? []
   }
 
   async function fetchPreferences() {
@@ -55,23 +45,9 @@ export const useNavStore = defineStore('nav', () => {
     await api.put('/preferences/nav', { hidden_tabs: tabs })
   }
 
-  function addDashboardToNav(d: NavDashboard) {
-    customDashboards.value.push(d)
-  }
-
-  function removeDashboardFromNav(slug: string) {
-    customDashboards.value = customDashboards.value.filter(d => d.slug !== slug)
-  }
-
-  function updateDashboardInNav(slug: string, updates: Partial<NavDashboard>) {
-    const d = customDashboards.value.find(d => d.slug === slug)
-    if (d) Object.assign(d, updates)
-  }
-
   return {
-    hiddenTabs, customDashboards, settingsOpen,
+    hiddenTabs, settingsOpen,
     allNativeTabs, nativeTabs,
     syncFromAuth, fetchPreferences, updateHiddenTabs,
-    addDashboardToNav, removeDashboardFromNav, updateDashboardInNav,
   }
 })

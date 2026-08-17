@@ -10,7 +10,8 @@ const router = createRouter({
     { path: '/health',         name: 'health',          component: () => import('../views/HealthView.vue') },
     { path: '/sleep',          name: 'sleep',           component: () => import('../views/SleepView.vue') },
     { path: '/profile',        name: 'profile',         component: () => import('../views/ProfileView.vue') },
-    { path: '/d/:slug',        name: 'custom-dashboard', component: () => import('../views/CustomDashboardView.vue') },
+    // Tableaux de bord personnalisés retirés : les anciens liens sont redirigés vers l'accueil
+    { path: '/d/:slug',        redirect: '/' },
   ],
 })
 
