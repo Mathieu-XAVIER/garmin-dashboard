@@ -14,8 +14,8 @@ from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from database import (
-    get_db, User, CustomDashboard, Activity, DailyHealth,
-    Sleep, HRV, PrepExerciseLog, CustomExerciseLog, DashboardWidget,
+    get_db, User, Activity, DailyHealth,
+    Sleep, HRV, PrepExerciseLog,
 )
 from auth import (
     verify_password,
@@ -80,13 +80,7 @@ def login(request: Request, form: OAuth2PasswordRequestForm = Depends(), db: Ses
 
 
 @router.get("/me")
-def me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    dashboards = (
-        db.query(CustomDashboard)
-        .filter_by(user_id=current_user.id)
-        .order_by(CustomDashboard.position)
-        .all()
-    )
+def me(current_user: User = Depends(get_current_user)):
     return {
         "id": current_user.id,
         "email": current_user.email,
@@ -94,10 +88,6 @@ def me(current_user: User = Depends(get_current_user), db: Session = Depends(get
         "garmin_email": current_user.garmin_email,
         "created_at": current_user.created_at,
         "nav_preferences": current_user.nav_preferences,
-        "custom_dashboards": [
-            {"id": d.id, "name": d.name, "slug": d.slug, "icon": d.icon, "position": d.position}
-            for d in dashboards
-        ],
     }
 
 
@@ -166,15 +156,8 @@ def delete_account(
     """Supprime le compte et toutes les données associées (RGPD)."""
     user_id = current_user.id
 
-    # Supprimer les widgets des dashboards de l'utilisateur
-    dashboards = db.query(CustomDashboard).filter_by(user_id=user_id).all()
-    for dashboard in dashboards:
-        db.query(DashboardWidget).filter_by(dashboard_id=dashboard.id).delete()
-        db.query(CustomExerciseLog).filter_by(dashboard_id=dashboard.id).delete()
-    db.query(CustomDashboard).filter_by(user_id=user_id).delete()
-
     # Supprimer toutes les données de l'utilisateur
-    for model in (Activity, DailyHealth, Sleep, HRV, PrepExerciseLog, CustomExerciseLog):
+    for model in (Activity, DailyHealth, Sleep, HRV, PrepExerciseLog):
         db.query(model).filter_by(user_id=user_id).delete()
 
     db.delete(current_user)

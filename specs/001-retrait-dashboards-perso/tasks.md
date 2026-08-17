@@ -105,14 +105,14 @@ sans conséquence visible.
 **Independent Test**: Appeler chaque opération retirée avec un jeton valide — toutes répondent
 404. `/auth/me` ne contient plus `custom_dashboards` mais conserve `nav_preferences`.
 
-- [ ] T019 [US2] Retirer l'import `from routes.dashboards import router as dashboards_router` (ligne ~28) et l'appel `app.include_router(dashboards_router)` (ligne ~78) dans `backend/main.py`
-- [ ] T020 [US2] Supprimer `backend/routes/dashboards.py` (684 lignes, 13 endpoints)
-- [ ] T021 [US2] Retirer la requête sur `CustomDashboard` et le champ `custom_dashboards` de la réponse de `/auth/me` (lignes ~84-100) dans `backend/routes/auth.py` — conserver `nav_preferences`
-- [ ] T022 [US2] Retirer le bloc de purge des tableaux de bord, widgets et saisies d'exercices (lignes ~169-174) de `delete_account`, et retirer `CustomExerciseLog` de la boucle de purge (ligne ~177) dans `backend/routes/auth.py` — conserver la purge filtrée par `user_id` des tables restantes (Principe I)
-- [ ] T023 [US2] Retirer `CustomDashboard`, `DashboardWidget` et `CustomExerciseLog` des imports (lignes ~17-18) de `backend/routes/auth.py`
-- [ ] T024 [US2] Vérifier que le backend démarre sans erreur d'import depuis `backend/`
-- [ ] T025 [US2] Vérifier avec un jeton valide que **les 13 opérations** de `/dashboards` listées dans [contracts/endpoints-supprimes.md](./contracts/endpoints-supprimes.md) répondent 404, une par une, et que `GET /auth/me` renvoie `nav_preferences` sans `custom_dashboards` — étape 6 de [quickstart.md](./quickstart.md), SC-002
-- [ ] T026 [US2] Vérifier sur un compte de test jetable que `DELETE /auth/account` s'exécute sans erreur et ne laisse aucune donnée résiduelle — SC-006
+- [X] T019 [US2] Retirer l'import `from routes.dashboards import router as dashboards_router` (ligne ~28) et l'appel `app.include_router(dashboards_router)` (ligne ~78) dans `backend/main.py`
+- [X] T020 [US2] Supprimer `backend/routes/dashboards.py` (684 lignes, 13 endpoints)
+- [X] T021 [US2] Retirer la requête sur `CustomDashboard` et le champ `custom_dashboards` de la réponse de `/auth/me` (lignes ~84-100) dans `backend/routes/auth.py` — conserver `nav_preferences`
+- [X] T022 [US2] Retirer le bloc de purge des tableaux de bord, widgets et saisies d'exercices (lignes ~169-174) de `delete_account`, et retirer `CustomExerciseLog` de la boucle de purge (ligne ~177) dans `backend/routes/auth.py` — conserver la purge filtrée par `user_id` des tables restantes (Principe I)
+- [X] T023 [US2] Retirer `CustomDashboard`, `DashboardWidget` et `CustomExerciseLog` des imports (lignes ~17-18) de `backend/routes/auth.py`
+- [X] T024 [US2] Vérifier que le backend démarre sans erreur d'import depuis `backend/`
+- [X] T025 [US2] Vérifier avec un jeton valide que **les 13 opérations** de `/dashboards` listées dans [contracts/endpoints-supprimes.md](./contracts/endpoints-supprimes.md) répondent 404, une par une, et que `GET /auth/me` renvoie `nav_preferences` sans `custom_dashboards` — étape 6 de [quickstart.md](./quickstart.md), SC-002
+- [X] T026 [US2] Vérifier sur un compte de test jetable que `DELETE /auth/account` s'exécute sans erreur et ne laisse aucune donnée résiduelle — SC-006
 
 **Checkpoint**: Le service ne rend plus la fonctionnalité, y compris hors interface
 
