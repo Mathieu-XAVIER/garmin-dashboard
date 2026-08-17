@@ -79,3 +79,15 @@ Inscription → JWT → Saisie credentials Garmin (chiffrés Fernet) → `Garmin
 - Toutes les routes de données sont protégées par `Depends(get_current_user)` et filtrées par `user_id`.
 - Pas de tests automatisés pour l'instant.
 - CORS autorise `localhost:5173` et `localhost:3000`.
+
+## Spec-Driven Development (spec-kit)
+
+Le projet utilise [spec-kit](https://github.com/github/spec-kit) pour développer les nouvelles fonctionnalités à partir de spécifications.
+
+- **`.specify/`** — templates, scripts bash et `memory/constitution.md` (principes du projet, à remplir).
+- **`.claude/skills/speckit-*/`** — skills installées, invocables en slash commands.
+- **`specs/`** — un dossier par fonctionnalité (spec, plan, tasks), créé par `/speckit-specify`.
+
+Workflow type : `/speckit-constitution` (une fois) → `/speckit-specify` → `/speckit-clarify` (optionnel) → `/speckit-plan` → `/speckit-tasks` → `/speckit-implement`.
+
+Mise à jour de l'outil : `uv tool upgrade specify-cli` puis `specify init --here --integration claude --script sh --force`.
