@@ -129,13 +129,13 @@ retrait de la migration automatique (T035) conditionne la réussite du DROP (T04
 **Independent Test**: Rechercher « handball » dans le code : aucune occurrence hors historique.
 L'application démarre et les cinq sections conservées fonctionnent.
 
-- [ ] T027 [P] [US4] Supprimer `frontend/src/views/HandballPrepView.vue`
-- [ ] T028 [P] [US4] Supprimer `frontend/src/stores/handball.ts`
-- [ ] T029 [US4] Retirer l'import et l'`include_router` du routeur handball dans `backend/main.py`
-- [ ] T030 [US4] Supprimer `backend/routes/handball.py` (3 endpoints : `GET /handball/prep`, `POST /handball/exercises`, `DELETE /handball/exercises/{exercise_id}`)
-- [ ] T031 [US4] Retirer `PrepExerciseLog` de l'import (ligne ~18) et de la boucle de purge (ligne ~177) de `delete_account` dans `backend/routes/auth.py`
-- [ ] T032 [US4] Exécuter `npm run type-check` depuis `frontend/` et vérifier le démarrage du backend — aucune erreur d'import
-- [ ] T033 [US4] Vérifier avec un jeton valide que **les 3 opérations** de `/handball` répondent 404 : `GET /handball/prep`, `POST /handball/exercises`, `DELETE /handball/exercises/1` — complète SC-002 (16 opérations au total avec T025)
+- [X] T027 [P] [US4] Supprimer `frontend/src/views/HandballPrepView.vue`
+- [X] T028 [P] [US4] Supprimer `frontend/src/stores/handball.ts`
+- [X] T029 [US4] Retirer l'import et l'`include_router` du routeur handball dans `backend/main.py` — **SANS OBJET** : constat à l'exécution, `main.py` ne montait que 6 routeurs (activities, health, stats, profile, auth, preferences) et n'a jamais monté le routeur handball. Les 3 endpoints `/handball` n'étaient donc **pas exposés** avant ce retrait ; ils répondaient déjà 404. Corrige le contrat et SC-002.
+- [X] T030 [US4] Supprimer `backend/routes/handball.py` (3 endpoints : `GET /handball/prep`, `POST /handball/exercises`, `DELETE /handball/exercises/{exercise_id}`)
+- [X] T031 [US4] Retirer `PrepExerciseLog` de l'import (ligne ~18) et de la boucle de purge (ligne ~177) de `delete_account` dans `backend/routes/auth.py`
+- [X] T032 [US4] Exécuter `npm run type-check` depuis `frontend/` et vérifier le démarrage du backend — aucune erreur d'import
+- [X] T033 [US4] Vérifier avec un jeton valide que **les 3 opérations** de `/handball` répondent 404 : `GET /handball/prep`, `POST /handball/exercises`, `DELETE /handball/exercises/1` — complète SC-002 (16 opérations au total avec T025)
 
 **Checkpoint**: Plus aucune trace de la prépa handball dans le code applicatif
 
