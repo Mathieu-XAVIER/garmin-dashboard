@@ -47,7 +47,7 @@ Monorepo à deux dossiers : `backend/` (Python/FastAPI) et `frontend/` (Vue 3/Vi
 - **`garmin_client.py`** — Wrapper `python-garminconnect` avec reconnexion automatique et cooldown de 5 min après échec. Reprend les jetons de session mémorisés pour éviter un login SSO (et un MFA) à chaque redémarrage ; expose `demarrer_login_mfa()` / `terminer_login_mfa()`.
 - **`mailer.py`** — Envoi SMTP (stdlib). Sans `SMTP_HOST`, les messages partent dans les logs.
 - **`garmin_manager.py`** — Pool de `GarminClient` par utilisateur. Cache les instances, les invalide au changement de credentials.
-- **`database.py`** — Modèles SQLAlchemy (User, Activity, DailyHealth, Sleep, HRV, PasswordResetToken, SyncLog) et session SQLite. Toutes les tables de données ont un `user_id` FK vers `users`. La DB est `backend/garmin.db`.
+- **`database.py`** — Modèles SQLAlchemy (User, Activity, DailyHealth, Sleep, HRV, BodyComposition, TrainingReadiness, RacePrediction, Goal, PasswordResetToken, SyncLog) et session SQLite. Toutes les tables de données ont un `user_id` FK vers `users`. La DB est `backend/garmin.db`.
 - **`scheduler.py`** — `sync_all_users()` itère les utilisateurs avec credentials Garmin et appelle `sync_user()` pour chacun. APScheduler le relance toutes les N minutes.
 - **`routes/`** — Chaque fichier est un `APIRouter` monté dans `main.py` :
   - `auth.py` (`/auth`) — inscription, connexion, `/auth/me`, mot de passe (changement, oubli, réinitialisation), credentials Garmin (PUT/DELETE) et code MFA (`/auth/garmin-mfa`)
@@ -56,6 +56,8 @@ Monorepo à deux dossiers : `backend/` (Python/FastAPI) et `frontend/` (Vue 3/Vi
   - `stats.py` (`/stats`) — résumé global, stats hebdomadaires, charge d'entraînement (protégé, filtré par user_id)
   - `profile.py` (`/profile`) — score de forme composite, historique VO2max, CTL/ATL, records perso, streak (protégé, filtré par user_id)
   - `preferences.py` (`/preferences`) — préférences de navigation, masquage des onglets (protégé, filtré par user_id)
+  - `goals.py` (`/goals`) — objectifs hebdomadaires et progression sur la semaine calendaire (lundi → dimanche)
+  - `export.py` (`/export`) — export CSV des activités et de la santé, GPX par activité (protégé ; le front télécharge en blob, un lien direct n'enverrait pas le Bearer)
 
 ### Frontend
 
@@ -89,6 +91,8 @@ Inscription → JWT → Saisie credentials Garmin (chiffrés Fernet) → `Garmin
 - Toutes les routes de données sont protégées par `Depends(get_current_user)` et filtrées par `user_id`.
 - Les dates ne se comparent jamais à une chaîne ISO : passer par `date_utils.day_start` / `day_after` (une colonne DateTime comparée à `'2026-08-19'` vaut minuit et perd la journée).
 - Toute synchro passe par `scheduler.sync_user`, qui déporte les appels Garmin bloquants dans un thread et journalise le résultat dans `SyncLog`.
+- Les appels Garmin coûtent du quota : les pesées et les prédictions de course se récupèrent par plage (un appel par synchro), et la disponibilité à l'entraînement est limitée aux `JOURS_READINESS` derniers jours puisqu'elle coûte un appel par jour.
+- Garmin exprime les poids et masses corporelles **en grammes** : `_parse_body_composition` convertit en kilos.
 - Les tests vivent dans `backend/tests/`. `conftest.py` fixe l'environnement (base temporaire, quotas désactivés, webhook Discord neutralisé) **avant** tout import applicatif : `database.py` lit `DATABASE_URL` à l'import pour construire son engine.
 - Toute route de données doit être couverte par `tests/test_isolation.py`, qui vérifie qu'un utilisateur ne voit jamais les données d'un autre.
 - CORS autorise `localhost:5173` et `localhost:3000`.

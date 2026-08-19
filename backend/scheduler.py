@@ -9,7 +9,10 @@ from datetime import date, datetime, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.orm import Session
 
-from database import SessionLocal, Activity, DailyHealth, Sleep, HRV, User, SyncLog
+from database import (
+    SessionLocal, Activity, DailyHealth, Sleep, HRV, User, SyncLog,
+    BodyComposition, TrainingReadiness, RacePrediction,
+)
 from garmin_client import GarminClient
 
 logger = logging.getLogger(__name__)
@@ -18,6 +21,10 @@ scheduler = AsyncIOScheduler()
 # Utilisateurs dont une synchro est en cours — évite qu'une synchro manuelle
 # et la synchro initiale (ou deux clics) tapent le quota Garmin en parallèle.
 syncs_en_cours: set[int] = set()
+
+# Profondeur d'historique pour la disponibilité à l'entraînement, qui coûte
+# un appel Garmin par jour — inutile de la remonter sur 90 jours.
+JOURS_READINESS = 7
 
 
 def _parse_start_time(value):
@@ -124,6 +131,79 @@ def _parse_hrv(raw, target_date, user_id: int):
     }
 
 
+def _parse_body_composition(raw, user_id: int):
+    """Une pesée du tableau dateWeightList renvoyé par Garmin."""
+    horodatage = raw.get("date") or raw.get("timestampGMT")
+    if isinstance(horodatage, (int, float)):
+        jour = datetime.fromtimestamp(horodatage / 1000).date().isoformat()
+    elif isinstance(horodatage, str):
+        jour = horodatage[:10]
+    else:
+        return None
+
+    poids = raw.get("weight")
+    return {
+        "user_id": user_id,
+        "date": jour,
+        # Garmin exprime les masses en grammes.
+        "weight_kg": round(poids / 1000, 2) if poids else None,
+        "bmi": raw.get("bmi"),
+        "body_fat_percent": raw.get("bodyFat"),
+        "body_water_percent": raw.get("bodyWater"),
+        "bone_mass_kg": round(raw["boneMass"] / 1000, 2) if raw.get("boneMass") else None,
+        "muscle_mass_kg": round(raw["muscleMass"] / 1000, 2) if raw.get("muscleMass") else None,
+        "visceral_fat": raw.get("visceralFat"),
+        "metabolic_age": raw.get("metabolicAge"),
+        "raw": raw,
+    }
+
+
+def _parse_training_readiness(raw, target_date, user_id: int):
+    """Garmin renvoie une liste ; seule la première entrée nous intéresse."""
+    if isinstance(raw, list):
+        raw = raw[0] if raw else None
+    if not isinstance(raw, dict) or raw.get("score") is None:
+        return None
+    return {
+        "user_id": user_id,
+        "date": target_date,
+        "score": raw.get("score"),
+        "level": raw.get("level"),
+        "sleep_score": raw.get("sleepScore"),
+        "recovery_time_hours": raw.get("recoveryTime"),
+        "hrv_factor_percent": raw.get("hrvFactorPercent"),
+        "acute_load": raw.get("acuteLoad"),
+        "raw": raw,
+    }
+
+
+_DISTANCES_PREDITES = {
+    "time_5k_seconds": 5000,
+    "time_10k_seconds": 10000,
+    "time_half_seconds": 21097,
+    "time_marathon_seconds": 42195,
+}
+
+
+def _parse_race_prediction(raw, user_id: int):
+    """Retient la prédiction la plus récente du tableau renvoyé."""
+    if isinstance(raw, list):
+        raw = raw[-1] if raw else None
+    if not isinstance(raw, dict):
+        return None
+
+    jour = (raw.get("calendarDate") or raw.get("date") or "")[:10]
+    if not jour:
+        return None
+
+    donnees = {"user_id": user_id, "date": jour, "raw": raw}
+    for colonne, metres in _DISTANCES_PREDITES.items():
+        donnees[colonne] = raw.get(f"time{metres}")
+    if not any(donnees[c] for c in _DISTANCES_PREDITES):
+        return None
+    return donnees
+
+
 def _upsert(db, Model, filter_by, data):
     existing = db.query(Model).filter_by(**filter_by).first()
     if existing:
@@ -135,7 +215,11 @@ def _upsert(db, Model, filter_by, data):
 
 def _sync_user_blocking(client: GarminClient, user_id: int, db: Session, days_back: int = 7):
     """Corps de la synchro — 100 % bloquant (HTTP Garmin + SQL)."""
-    summary = {"activities": 0, "daily_health": 0, "sleep": 0, "hrv": 0, "errors": []}
+    summary = {
+        "activities": 0, "daily_health": 0, "sleep": 0, "hrv": 0,
+        "body_composition": 0, "readiness": 0, "race_predictions": 0,
+        "errors": [],
+    }
     today = date.today()
     start = today - timedelta(days=days_back)
 
@@ -152,6 +236,38 @@ def _sync_user_blocking(client: GarminClient, user_id: int, db: Session, days_ba
         summary["errors"].append(f"activities: {e}")
         logger.error(f"[user={user_id}] Erreur synchro activités : {e}", exc_info=True)
         db.rollback()
+
+    # Pesées : un seul appel de plage plutôt qu'un par jour.
+    try:
+        brut = client.get_body_composition(start, today)
+        pesees = (brut or {}).get("dateWeightList") or []
+        for pesee in pesees:
+            data = _parse_body_composition(pesee, user_id)
+            if data:
+                _upsert(db, BodyComposition, {"date": data["date"], "user_id": user_id}, data)
+                summary["body_composition"] += 1
+        db.commit()
+    except Exception as e:
+        summary["errors"].append(f"body_composition: {e}")
+        logger.error(f"[user={user_id}] Erreur composition corporelle : {e}", exc_info=True)
+        db.rollback()
+
+    # Prédictions de course : idem, un seul appel.
+    try:
+        brut = client.get_race_predictions(start, today)
+        data = _parse_race_prediction(brut, user_id)
+        if data:
+            _upsert(db, RacePrediction, {"date": data["date"], "user_id": user_id}, data)
+            summary["race_predictions"] += 1
+        db.commit()
+    except Exception as e:
+        summary["errors"].append(f"race_predictions: {e}")
+        logger.error(f"[user={user_id}] Erreur prédictions de course : {e}", exc_info=True)
+        db.rollback()
+
+    # La disponibilité à l'entraînement n'a d'intérêt que récente, et coûte
+    # un appel par jour : on la limite à la dernière semaine de la plage.
+    debut_readiness = max(start, today - timedelta(days=JOURS_READINESS))
 
     current = start
     while current <= today:
@@ -189,6 +305,17 @@ def _sync_user_blocking(client: GarminClient, user_id: int, db: Session, days_ba
             summary["errors"].append(f"hrv {date_str}: {e}")
             logger.error(f"[user={user_id}] Erreur HRV {date_str} : {e}", exc_info=True)
 
+        if current >= debut_readiness:
+            try:
+                raw = client.get_training_readiness(current)
+                data = _parse_training_readiness(raw, date_str, user_id)
+                if data:
+                    _upsert(db, TrainingReadiness, {"date": date_str, "user_id": user_id}, data)
+                    summary["readiness"] += 1
+            except Exception as e:
+                summary["errors"].append(f"readiness {date_str}: {e}")
+                logger.error(f"[user={user_id}] Erreur disponibilité {date_str} : {e}", exc_info=True)
+
         db.commit()
         current += timedelta(days=1)
 
@@ -225,7 +352,12 @@ def _sync_avec_journal(client: GarminClient, user_id: int, db: Session,
         db.commit()
         raise
 
-    recupere = sum(summary[k] for k in ("activities", "daily_health", "sleep", "hrv"))
+    recupere = sum(
+        summary[k] for k in (
+            "activities", "daily_health", "sleep", "hrv",
+            "body_composition", "readiness", "race_predictions",
+        )
+    )
     log.finished_at = datetime.utcnow()
     log.activities = summary["activities"]
     log.daily_health = summary["daily_health"]

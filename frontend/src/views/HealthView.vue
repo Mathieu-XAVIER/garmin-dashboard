@@ -115,6 +115,29 @@
         <button class="page-btn" :disabled="healthPage === healthTotalPages" @click="healthPage++">Suivant ›</button>
       </div>
     </section>
+
+    <!-- Poids et composition corporelle ────────────────── -->
+    <section v-if="pesees.length" class="section">
+      <div class="section-header-row">
+        <h2 class="section-title">Poids</h2>
+        <span class="derniere-pesee mono">
+          {{ dernierePesee.weight_kg }} kg
+          <span v-if="variationPoids !== null" :class="variationPoids <= 0 ? 'text-teal' : 'text-orange'">
+            {{ variationPoids > 0 ? '+' : '' }}{{ variationPoids.toFixed(1) }} kg
+          </span>
+        </span>
+      </div>
+      <div class="chart-card">
+        <AreaChart :data="poidsData" label="Poids (kg)" color="#7C6FCD" :height="180" />
+      </div>
+      <div class="composition-grid">
+        <MetricCard label="IMC" :value="dernierePesee.bmi" :decimals="1" accent="none" />
+        <MetricCard label="Masse grasse" :value="dernierePesee.body_fat_percent" unit="%" :decimals="1" accent="orange" />
+        <MetricCard label="Masse musculaire" :value="dernierePesee.muscle_mass_kg" unit="kg" :decimals="1" accent="teal" />
+        <MetricCard label="Hydratation" :value="dernierePesee.body_water_percent" unit="%" :decimals="1" accent="none" />
+      </div>
+    </section>
+
   </div>
 </template>
 
@@ -124,9 +147,26 @@ import { useGarminStore } from '../stores/garmin'
 import MetricCard from '../components/cards/MetricCard.vue'
 import AreaChart from '../components/charts/AreaChart.vue'
 import BarChart from '../components/charts/BarChart.vue'
+import api from '@/api'
 
 const store = useGarminStore()
+const pesees = ref<any[]>([])
 const days = ref(30)
+
+const dernierePesee = computed(() => pesees.value[pesees.value.length - 1] ?? {})
+
+const poidsData = computed(() =>
+  pesees.value
+    .filter(p => p.weight_kg)
+    .map(p => ({ x: p.date?.slice(5), y: p.weight_kg }))
+)
+
+/** Écart entre la dernière pesée et la plus ancienne de la période. */
+const variationPoids = computed(() => {
+  const avec = pesees.value.filter(p => p.weight_kg)
+  if (avec.length < 2) return null
+  return avec[avec.length - 1].weight_kg - avec[0].weight_kg
+})
 const healthPage = ref(1)
 const healthPerPage = 15
 
@@ -167,7 +207,15 @@ function intensityMin(d: any) {
   return `${mod}m mod. ${vig}m vig.`
 }
 
-onMounted(() => store.fetchDailyHealth(30))
+onMounted(async () => {
+  store.fetchDailyHealth(30)
+  try {
+    const { data } = await api.get('/health/body-composition?days=180')
+    pesees.value = data
+  } catch {
+    pesees.value = []
+  }
+})
 </script>
 
 <style scoped>
@@ -231,4 +279,10 @@ onMounted(() => store.fetchDailyHealth(30))
   .table-header, .table-row { min-width: 600px; }
   .section { margin-bottom: 20px; }
 }
+
+.derniere-pesee { font-size: 13px; color: var(--text); font-weight: 600; }
+.derniere-pesee .text-teal { color: var(--teal); font-weight: 500; margin-left: 6px; }
+.derniere-pesee .text-orange { color: var(--orange); font-weight: 500; margin-left: 6px; }
+.composition-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 12px; }
+@media (max-width: 768px) { .composition-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; } }
 </style>

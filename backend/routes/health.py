@@ -7,7 +7,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from datetime import date, timedelta
 
-from database import get_db, DailyHealth, Sleep, HRV, User
+from database import (
+    get_db, DailyHealth, Sleep, HRV, User,
+    BodyComposition, TrainingReadiness,
+)
 from auth import get_current_user
 
 router = APIRouter(prefix="/health", tags=["health"])
@@ -115,6 +118,71 @@ def hrv_latest(
     if not row:
         return {"message": "Aucune donnée HRV disponible"}
     return _sh(row)
+
+
+@router.get("/body-composition")
+def composition_corporelle(
+    days: int = Query(180, ge=1, le=1825),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    since = (date.today() - timedelta(days=days)).isoformat()
+    lignes = (
+        db.query(BodyComposition)
+        .filter(BodyComposition.user_id == current_user.id, BodyComposition.date >= since)
+        .order_by(BodyComposition.date)
+        .all()
+    )
+    return [_sbc(b) for b in lignes]
+
+
+@router.get("/readiness")
+def disponibilite(
+    days: int = Query(30, ge=1, le=365),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    since = (date.today() - timedelta(days=days)).isoformat()
+    lignes = (
+        db.query(TrainingReadiness)
+        .filter(TrainingReadiness.user_id == current_user.id, TrainingReadiness.date >= since)
+        .order_by(desc(TrainingReadiness.date))
+        .all()
+    )
+    return [_str(r) for r in lignes]
+
+
+@router.get("/readiness/latest")
+def disponibilite_du_jour(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    ligne = (
+        db.query(TrainingReadiness)
+        .filter(TrainingReadiness.user_id == current_user.id)
+        .order_by(desc(TrainingReadiness.date))
+        .first()
+    )
+    if not ligne:
+        return {"message": "Aucun score de disponibilité disponible"}
+    return _str(ligne)
+
+
+def _sbc(b):
+    return {
+        "date": b.date, "weight_kg": b.weight_kg, "bmi": b.bmi,
+        "body_fat_percent": b.body_fat_percent, "body_water_percent": b.body_water_percent,
+        "bone_mass_kg": b.bone_mass_kg, "muscle_mass_kg": b.muscle_mass_kg,
+        "visceral_fat": b.visceral_fat, "metabolic_age": b.metabolic_age,
+    }
+
+
+def _str(r):
+    return {
+        "date": r.date, "score": r.score, "level": r.level,
+        "sleep_score": r.sleep_score, "recovery_time_hours": r.recovery_time_hours,
+        "hrv_factor_percent": r.hrv_factor_percent, "acute_load": r.acute_load,
+    }
 
 
 def _sd(d):

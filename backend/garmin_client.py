@@ -193,6 +193,31 @@ class GarminClient:
             logger.error(f"Erreur get_hrv({target_date}) : {e}")
             return {}
 
+    def get_body_composition(self, start_date, end_date):
+        try:
+            return self.client.get_body_composition(
+                start_date.isoformat(), end_date.isoformat()
+            )
+        except Exception as e:
+            logger.error(f"Erreur get_body_composition : {e}")
+            return {}
+
+    def get_training_readiness(self, target_date):
+        try:
+            return self.client.get_training_readiness(target_date.isoformat())
+        except Exception as e:
+            logger.error(f"Erreur get_training_readiness({target_date}) : {e}")
+            return []
+
+    def get_race_predictions(self, start_date, end_date):
+        try:
+            return self.client.get_race_predictions(
+                start_date.isoformat(), end_date.isoformat()
+            )
+        except Exception as e:
+            logger.error(f"Erreur get_race_predictions : {e}")
+            return {}
+
     def get_date_range(self, days_back):
         today = date.today()
         return today - timedelta(days=days_back), today

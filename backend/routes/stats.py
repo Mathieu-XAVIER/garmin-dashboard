@@ -79,6 +79,58 @@ def weekly_stats(
     return result
 
 
+@router.get("/calendar")
+def calendrier(
+    year: int = Query(None, ge=2000, le=2100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Activité jour par jour sur une année, pour une vue en damier.
+
+    Seuls les jours actifs sont renvoyés : sur une année complète, la
+    plupart des cases sont vides et n'ont pas à transiter.
+    """
+    annee = year or date.today().year
+    debut, fin = date(annee, 1, 1), date(annee, 12, 31)
+
+    lignes = db.query(Activity).filter(
+        Activity.user_id == current_user.id,
+        Activity.start_time >= day_start(debut),
+        Activity.start_time < day_after(fin),
+    ).all()
+
+    par_jour: dict[str, dict] = {}
+    for activite in lignes:
+        if not activite.start_time:
+            continue
+        cle = activite.start_time.date().isoformat()
+        jour = par_jour.setdefault(cle, {
+            "date": cle, "activites": 0, "duree_secondes": 0,
+            "distance_km": 0.0, "charge": 0.0, "types": [],
+        })
+        jour["activites"] += 1
+        jour["duree_secondes"] += activite.duration_seconds or 0
+        jour["distance_km"] += (activite.distance_meters or 0) / 1000
+        jour["charge"] += activite.training_load or 0
+        if activite.activity_type and activite.activity_type not in jour["types"]:
+            jour["types"].append(activite.activity_type)
+
+    jours = []
+    for jour in sorted(par_jour.values(), key=lambda j: j["date"]):
+        jour["distance_km"] = round(jour["distance_km"], 2)
+        jour["charge"] = round(jour["charge"], 1)
+        jour["duree_secondes"] = int(jour["duree_secondes"])
+        jours.append(jour)
+
+    return {
+        "annee": annee,
+        "jours_actifs": len(jours),
+        "total_activites": sum(j["activites"] for j in jours),
+        "total_distance_km": round(sum(j["distance_km"] for j in jours), 1),
+        "jours": jours,
+    }
+
+
 @router.get("/training-load")
 def training_load(
     days: int = Query(42, ge=7, le=180),

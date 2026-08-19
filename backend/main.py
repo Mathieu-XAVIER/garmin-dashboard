@@ -28,6 +28,8 @@ from routes.stats import router as stats_router
 from routes.profile import router as profile_router
 from routes.auth import router as auth_router
 from routes.preferences import router as preferences_router
+from routes.goals import router as goals_router
+from routes.export import router as export_router
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
@@ -80,6 +82,8 @@ app.include_router(health_router)
 app.include_router(stats_router)
 app.include_router(profile_router)
 app.include_router(preferences_router)
+app.include_router(goals_router)
+app.include_router(export_router)
 
 
 @app.get("/")

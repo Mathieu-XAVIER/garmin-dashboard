@@ -111,7 +111,53 @@
           <p v-if="derniereSynchro.erreur" class="synchro-erreur">{{ derniereSynchro.erreur }}</p>
         </div>
         <p v-else class="synchro-vide">Aucune synchronisation enregistrée pour l'instant.</p>
+
+        <!-- Objectifs hebdomadaires -->
+        <h3 class="subsection-title">Objectifs hebdomadaires</h3>
+        <p class="bloc-hint">Semaine calendaire, du lundi au dimanche. Laissez à 0 pour ne pas suivre une métrique.</p>
+
+        <form @submit.prevent="handleEnregistrerObjectifs" class="objectifs-form">
+          <div v-for="m in goalsStore.metriquesDisponibles" :key="m.metrique" class="objectif-ligne">
+            <label :for="`obj-${m.metrique}`" class="objectif-nom">
+              {{ m.libelle }}<span v-if="m.unite" class="objectif-unite"> ({{ m.unite }})</span>
+            </label>
+            <input :id="`obj-${m.metrique}`" v-model.number="ciblesObjectifs[m.metrique]"
+                   type="number" min="0" step="any" placeholder="0" />
+          </div>
+          <div class="garmin-form-actions">
+            <button type="submit" class="btn-sm btn-primary" :disabled="objectifsEnCours">
+              {{ objectifsEnCours ? 'Enregistrement…' : 'Enregistrer' }}
+            </button>
+          </div>
+          <p v-if="objectifsMsg" class="garmin-msg success">{{ objectifsMsg }}</p>
+        </form>
+
+        <!-- Export -->
+        <h3 class="subsection-title">Exporter mes données</h3>
+        <p class="bloc-hint">Fichiers CSV compatibles Excel, encodés en UTF-8.</p>
+        <div class="export-actions">
+          <button class="btn-sm" :disabled="exportEnCours" @click="handleExport('/export/activities.csv', 'activites.csv')">
+            Activités (CSV)
+          </button>
+          <button class="btn-sm" :disabled="exportEnCours" @click="handleExport('/export/health.csv', 'sante.csv')">
+            Santé (CSV)
+          </button>
+        </div>
+        <p v-if="exportMsg" class="garmin-msg" :class="exportMsgType">{{ exportMsg }}</p>
       </div>
+    </section>
+
+    <!-- Calendrier annuel ──────────────────────────────── -->
+    <section class="section">
+      <h2 class="section-title">Année d'entraînement</h2>
+      <CalendrierAnnuel
+        :annee="anneeCalendrier"
+        :jours="calendrier?.jours ?? []"
+        :total-activites="calendrier?.total_activites ?? 0"
+        :total-distance="calendrier?.total_distance_km ?? 0"
+        :jours-actifs="calendrier?.jours_actifs ?? 0"
+        @changer-annee="chargerCalendrier"
+      />
     </section>
 
     <!-- Skeleton ────────────────────────────────────────── -->
@@ -168,6 +214,20 @@
               <span class="fm-label">Sommeil moy. 7j</span>
               <span class="fm-value mono">{{ fitness.sleep_score_avg_7d ?? '—' }} <span class="fm-unit">/ 100</span></span>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Prédictions de course ────────────────────────── -->
+      <section v-if="predictions" class="section">
+        <div class="section-header-row">
+          <h2 class="section-title">Prédictions de course</h2>
+          <span class="semaine-plage mono">estimées le {{ fmtJour(predictions.date) }}</span>
+        </div>
+        <div class="predictions-grid">
+          <div v-for="p in predictionsAffichees" :key="p.cle" class="prediction-carte">
+            <span class="prediction-distance">{{ p.libelle }}</span>
+            <span class="prediction-temps mono">{{ p.temps }}</span>
           </div>
         </div>
       </section>
@@ -288,12 +348,26 @@ import { ref, computed, onMounted } from 'vue'
 import { useProfileStore } from '../stores/profile'
 import { useAuthStore } from '../stores/auth'
 import { useGarminStore } from '../stores/garmin'
+import { useGoalsStore } from '../stores/goals'
+import { telechargerFichier } from '../utils/telechargement'
+import CalendrierAnnuel from '../components/CalendrierAnnuel.vue'
+import api from '@/api'
 import SkeletonLoader from '../components/SkeletonLoader.vue'
 import LineChart from '../components/charts/LineChart.vue'
 
 const store = useProfileStore()
 const authStore = useAuthStore()
 const garminStore = useGarminStore()
+const goalsStore = useGoalsStore()
+
+const ciblesObjectifs = ref<Record<string, number>>({})
+const objectifsEnCours = ref(false)
+const objectifsMsg = ref('')
+const exportEnCours = ref(false)
+const exportMsg = ref('')
+const exportMsgType = ref('')
+const anneeCalendrier = ref(new Date().getFullYear())
+const calendrier = ref<any>(null)
 
 const showGarminForm = ref(false)
 const showPasswordForm = ref(false)
@@ -396,6 +470,67 @@ const LIBELLE_DECLENCHEUR: Record<string, string> = {
 }
 
 const derniereSynchro = computed(() => garminStore.syncStatus?.derniere ?? null)
+const predictions = computed(() => store.data?.race_predictions ?? null)
+
+const LIBELLES_DISTANCE: Record<string, string> = {
+  '5k': '5 km', '10k': '10 km', semi: 'Semi-marathon', marathon: 'Marathon',
+}
+
+const predictionsAffichees = computed(() =>
+  Object.entries(LIBELLES_DISTANCE)
+    .filter(([cle]) => predictions.value?.[cle])
+    .map(([cle, libelle]) => ({ cle, libelle, temps: fmtChrono(predictions.value[cle]) }))
+)
+
+function fmtChrono(secondes: number): string {
+  const h = Math.floor(secondes / 3600)
+  const m = Math.floor((secondes % 3600) / 60)
+  const s = Math.round(secondes % 60)
+  const mm = m.toString().padStart(2, '0')
+  const ss = s.toString().padStart(2, '0')
+  return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`
+}
+
+function fmtJour(valeur: string): string {
+  return new Date(valeur).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+async function handleEnregistrerObjectifs() {
+  objectifsEnCours.value = true
+  objectifsMsg.value = ''
+  try {
+    await goalsStore.enregistrer(
+      goalsStore.metriquesDisponibles.map(m => ({
+        metrique: m.metrique,
+        cible: Number(ciblesObjectifs.value[m.metrique] ?? 0),
+      }))
+    )
+    objectifsMsg.value = 'Objectifs enregistrés'
+  } finally {
+    objectifsEnCours.value = false
+  }
+}
+
+async function handleExport(url: string, nomParDefaut: string) {
+  exportEnCours.value = true
+  exportMsg.value = ''
+  try {
+    await telechargerFichier(url, nomParDefaut)
+    exportMsg.value = 'Export téléchargé'
+    exportMsgType.value = 'success'
+  } catch {
+    exportMsg.value = "Échec de l'export"
+    exportMsgType.value = 'error'
+  } finally {
+    exportEnCours.value = false
+  }
+}
+
+async function chargerCalendrier(annee: number) {
+  anneeCalendrier.value = annee
+  const { data } = await api.get(`/stats/calendar?year=${annee}`)
+  calendrier.value = data
+}
 
 const fitness       = computed(() => store.data?.fitness_score ?? {})
 const vo2maxHistory = computed(() => store.data?.vo2max_history ?? [])
@@ -441,9 +576,17 @@ function pbValue(key: string | number | symbol, val: any) {
   return `${val.value_km} km`
 }
 
-onMounted(() => {
+onMounted(async () => {
   store.fetchProfile()
   garminStore.fetchSyncStatus().catch(() => {})
+  chargerCalendrier(anneeCalendrier.value).catch(() => {})
+
+  await goalsStore.fetchObjectifs().catch(() => {})
+  goalsStore.fetchProgression().catch(() => {})
+  goalsStore.metriquesDisponibles.forEach(m => {
+    ciblesObjectifs.value[m.metrique] =
+      goalsStore.objectifs.find(o => o.metrique === m.metrique)?.cible ?? 0
+  })
 })
 </script>
 
@@ -563,5 +706,28 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .synchro-ligne { gap: 6px; }
+}
+
+/* ── Objectifs, export, prédictions ─────────────────────── */
+.bloc-hint { font-size: 12px; color: var(--text-dim); margin: 6px 0 12px; line-height: 1.5; }
+
+.objectifs-form { display: flex; flex-direction: column; gap: 10px; }
+.objectif-ligne { display: grid; grid-template-columns: 1fr 120px; align-items: center; gap: 12px; }
+.objectif-nom { font-size: 13px; color: var(--text-muted); }
+.objectif-unite { color: var(--text-dim); }
+.objectif-ligne input { padding: 8px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: var(--mono); font-size: 13px; outline: none; transition: border-color 0.15s; }
+.objectif-ligne input:focus { border-color: var(--teal); }
+
+.export-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.predictions-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.prediction-carte { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.prediction-distance { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 600; }
+.prediction-temps { font-size: 20px; color: var(--teal); font-weight: 600; }
+.semaine-plage { font-size: 12px; color: var(--text-dim); }
+
+@media (max-width: 768px) {
+  .objectif-ligne { grid-template-columns: 1fr 90px; gap: 8px; }
+  .predictions-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
 }
 </style>

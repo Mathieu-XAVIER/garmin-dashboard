@@ -43,7 +43,15 @@
       </section>
 
       <!-- Carte GPS ─────────────────────────────────────── -->
-      <ActivityMap v-if="activity?.has_gps" :garmin-id="(route.params.id as string)" />
+      <template v-if="activity?.has_gps">
+        <ActivityMap :garmin-id="(route.params.id as string)" />
+        <div class="gpx-actions">
+          <button class="gpx-btn" :disabled="exportGpxEnCours" @click="handleExportGpx">
+            {{ exportGpxEnCours ? 'Préparation…' : '↓ Télécharger le GPX' }}
+          </button>
+          <span v-if="gpxMsg" class="gpx-msg">{{ gpxMsg }}</span>
+        </div>
+      </template>
 
       <!-- Effets d'entraînement ──────────────────────────── -->
       <section class="section" v-if="activity.aerobic_training_effect || activity.anaerobic_training_effect">
@@ -152,10 +160,29 @@ import MetricCard from '../components/cards/MetricCard.vue'
 import DonutChart from '../components/charts/DonutChart.vue'
 import SkeletonLoader from '../components/SkeletonLoader.vue'
 import ActivityMap from '../components/maps/ActivityMap.vue'
+import { telechargerFichier } from '../utils/telechargement'
 
 const route    = useRoute()
 const activity = ref<any>(null)
 const loading  = ref(true)
+const exportGpxEnCours = ref(false)
+const gpxMsg = ref('')
+
+async function handleExportGpx() {
+  exportGpxEnCours.value = true
+  gpxMsg.value = ''
+  try {
+    const id = route.params.id as string
+    await telechargerFichier(`/export/activities/${id}.gpx`, `activite-${id}.gpx`)
+  } catch (e: any) {
+    // Le tracé n'est mis en cache qu'au premier affichage de la carte.
+    gpxMsg.value = e.response?.status === 404
+      ? "Tracé pas encore récupéré — attendez le chargement de la carte."
+      : "Échec du téléchargement"
+  } finally {
+    exportGpxEnCours.value = false
+  }
+}
 
 // ── Fetch ──────────────────────────────────────────────
 onMounted(async () => {
@@ -321,4 +348,10 @@ function formatDate(dt: string): string {
   .table-header, .table-row { min-width: 500px; }
   .section { margin-bottom: 20px; }
 }
+
+.gpx-actions { display: flex; align-items: center; gap: 12px; margin: 12px 0 24px; flex-wrap: wrap; }
+.gpx-btn { padding: 7px 14px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font-family: var(--mono); font-size: 12px; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+.gpx-btn:hover:not(:disabled) { border-color: var(--teal); color: var(--teal); }
+.gpx-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.gpx-msg { font-size: 12px; color: var(--orange); }
 </style>

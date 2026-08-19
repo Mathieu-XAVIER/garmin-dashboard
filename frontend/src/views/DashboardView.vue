@@ -8,6 +8,17 @@
       <div v-if="store.error" class="error-badge">{{ store.error }}</div>
     </header>
 
+    <!-- Objectifs de la semaine ────────────────────────── -->
+    <section v-if="goalsStore.progression.length" class="section">
+      <div class="section-header-row">
+        <h2 class="section-title">Objectifs de la semaine</h2>
+        <span class="semaine-plage mono">{{ plageSemaine }}</span>
+      </div>
+      <div class="objectifs-grid">
+        <GoalCard v-for="o in goalsStore.progression" :key="o.metrique" :objectif="o" />
+      </div>
+    </section>
+
     <!-- KPIs du jour ───────────────────────────────────── -->
     <section class="section">
       <h2 class="section-title">Aujourd'hui</h2>
@@ -19,6 +30,7 @@
         <MetricCard label="Stress moyen"     :value="store.todayHealth?.avg_stress"         sub="/ 100" accent="none" />
         <MetricCard label="Calories"          :value="store.todayHealth?.calories_total"     unit="kcal" accent="none" />
         <MetricCard label="VO2 max"          :value="store.summary?.latest_vo2max"          :decimals="1" sub="Dernière activité" accent="purple" />
+        <MetricCard label="Disponibilité"    :value="readiness?.score"                      :sub="readiness?.level ?? 'Score Garmin'" accent="teal" />
       </div>
     </section>
 
@@ -72,10 +84,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useGarminStore } from '../stores/garmin'
+import { useGoalsStore } from '../stores/goals'
+import api from '@/api'
 import MetricCard    from '../components/cards/MetricCard.vue'
+import GoalCard      from '../components/cards/GoalCard.vue'
 import ActivityRow   from '../components/cards/ActivityRow.vue'
 import AreaChart     from '../components/charts/AreaChart.vue'
 import BarChart      from '../components/charts/BarChart.vue'
@@ -83,6 +98,16 @@ import SkeletonLoader from '../components/SkeletonLoader.vue'
 import EmptyState    from '../components/EmptyState.vue'
 
 const store = useGarminStore()
+const goalsStore = useGoalsStore()
+const readiness = ref<any>(null)
+
+const plageSemaine = computed(() => {
+  if (!goalsStore.semaineDebut || !goalsStore.semaineFin) return ''
+  const options = { day: 'numeric', month: 'short' } as const
+  const debut = new Date(goalsStore.semaineDebut).toLocaleDateString('fr-FR', options)
+  const fin = new Date(goalsStore.semaineFin).toLocaleDateString('fr-FR', options)
+  return `${debut} — ${fin}`
+})
 
 const today = new Date().toLocaleDateString('fr-FR', {
   weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
@@ -108,9 +133,16 @@ const hrvStatusClass = computed(() => {
   return 'status-neutral'
 })
 
-onMounted(() => {
+onMounted(async () => {
   store.loadDashboard()
   store.fetchDailyHealth(14)
+  goalsStore.fetchProgression().catch(() => {})
+  try {
+    const { data } = await api.get('/health/readiness/latest')
+    readiness.value = data.score != null ? data : null
+  } catch {
+    readiness.value = null
+  }
 })
 </script>
 
@@ -124,6 +156,8 @@ onMounted(() => {
 .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 600; margin-bottom: 14px; }
 .section-header-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.objectifs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.semaine-plage { font-size: 12px; color: var(--text-dim); }
 .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 12px 8px; }
 .card-list { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; padding: 4px 0; }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
@@ -143,6 +177,7 @@ onMounted(() => {
   .view-header { margin-bottom: 20px; }
   .view-title { font-size: 20px; }
   .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .objectifs-grid { grid-template-columns: 1fr; gap: 8px; }
   .section { margin-bottom: 24px; }
   .chart-card { padding: 12px 8px 6px; }
 }
