@@ -41,6 +41,14 @@ cp .env.example .env       # Renseigner les variables (voir Configuration)
 python main.py
 ```
 
+### Tests
+
+```bash
+cd backend
+pip install -r requirements-dev.txt
+pytest -q
+```
+
 ### Frontend
 
 ```bash

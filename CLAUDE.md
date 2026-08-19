@@ -14,6 +14,11 @@ Dashboard web multi-utilisateurs pour visualiser les données Garmin Connect. Le
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python main.py                    # lance FastAPI sur :8000 avec reload
+
+pip install -r requirements-dev.txt
+pytest -q                         # suite complète
+pytest tests/test_isolation.py    # un seul fichier
+pytest -q --cov=. --cov-report=term   # avec couverture
 ```
 
 ### Frontend (depuis `frontend/`)
@@ -84,7 +89,8 @@ Inscription → JWT → Saisie credentials Garmin (chiffrés Fernet) → `Garmin
 - Toutes les routes de données sont protégées par `Depends(get_current_user)` et filtrées par `user_id`.
 - Les dates ne se comparent jamais à une chaîne ISO : passer par `date_utils.day_start` / `day_after` (une colonne DateTime comparée à `'2026-08-19'` vaut minuit et perd la journée).
 - Toute synchro passe par `scheduler.sync_user`, qui déporte les appels Garmin bloquants dans un thread et journalise le résultat dans `SyncLog`.
-- Pas de tests automatisés pour l'instant.
+- Les tests vivent dans `backend/tests/`. `conftest.py` fixe l'environnement (base temporaire, quotas désactivés, webhook Discord neutralisé) **avant** tout import applicatif : `database.py` lit `DATABASE_URL` à l'import pour construire son engine.
+- Toute route de données doit être couverte par `tests/test_isolation.py`, qui vérifie qu'un utilisateur ne voit jamais les données d'un autre.
 - CORS autorise `localhost:5173` et `localhost:3000`.
 
 ## Spec-Driven Development (spec-kit)
