@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from datetime import date, timedelta
 
-from database import get_db, Activity, DailyHealth, Sleep, HRV, User
+from database import (
+    get_db, Activity, DailyHealth, Sleep, HRV, User, RacePrediction,
+)
 from date_utils import day_start, day_after
 from auth import get_current_user
 
@@ -31,6 +33,25 @@ def get_profile(
         "sleep_trend":      _sleep_trend(db, today, uid),
         "personal_bests":   _personal_bests(db, uid),
         "activity_streak":  _activity_streak(db, today, uid),
+        "race_predictions": _race_predictions(db, uid),
+    }
+
+
+def _race_predictions(db: Session, uid: int) -> dict | None:
+    ligne = (
+        db.query(RacePrediction)
+        .filter(RacePrediction.user_id == uid)
+        .order_by(desc(RacePrediction.date))
+        .first()
+    )
+    if not ligne:
+        return None
+    return {
+        "date": ligne.date,
+        "5k": ligne.time_5k_seconds,
+        "10k": ligne.time_10k_seconds,
+        "semi": ligne.time_half_seconds,
+        "marathon": ligne.time_marathon_seconds,
     }
 
 

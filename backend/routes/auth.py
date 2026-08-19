@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from database import (
     get_db, User, Activity, DailyHealth,
     Sleep, HRV, PasswordResetToken, SyncLog,
+    BodyComposition, TrainingReadiness, RacePrediction, Goal,
 )
 from auth import (
     verify_password,
@@ -384,7 +385,10 @@ def delete_account(
     user_id = current_user.id
 
     # Supprimer toutes les données de l'utilisateur
-    for model in (Activity, DailyHealth, Sleep, HRV, SyncLog, PasswordResetToken):
+    for model in (
+        Activity, DailyHealth, Sleep, HRV, SyncLog, PasswordResetToken,
+        BodyComposition, TrainingReadiness, RacePrediction, Goal,
+    ):
         db.query(model).filter_by(user_id=user_id).delete()
 
     db.delete(current_user)

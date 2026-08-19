@@ -20,6 +20,10 @@ Dashboard web multi-utilisateurs pour visualiser ses données Garmin Connect. Al
 - Santé quotidienne : steps, calories, stress, body battery, FC repos
 - Sommeil : score, phases (profond/léger/REM), SpO2
 - Profil : score de forme composite, CTL/ATL/TSB, VO2max, records personnels
+- Objectifs hebdomadaires (distance, séances, durée, pas) avec suivi de progression
+- Calendrier annuel en damier des séances
+- Poids et composition corporelle, disponibilité à l'entraînement, prédictions de course
+- Export CSV (activités, santé) et GPX par activité
 - Navigation personnalisable (masquer/afficher les onglets)
 - Interface responsive : bottom nav mobile, menu hamburger, tableaux scrollables, modals adaptés
 

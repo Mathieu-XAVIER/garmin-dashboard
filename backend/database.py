@@ -141,6 +141,94 @@ class HRV(Base):
     )
 
 
+class BodyComposition(Base):
+    """Pesées et composition corporelle (balance connectée Garmin Index)."""
+
+    __tablename__ = "body_composition"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    date = Column(String, index=True, nullable=False)
+    weight_kg = Column(Float)
+    bmi = Column(Float)
+    body_fat_percent = Column(Float)
+    body_water_percent = Column(Float)
+    bone_mass_kg = Column(Float)
+    muscle_mass_kg = Column(Float)
+    visceral_fat = Column(Float)
+    metabolic_age = Column(Float)
+    raw = Column(JSON)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "date", name="uq_body_user_date"),
+    )
+
+
+class TrainingReadiness(Base):
+    """Score de disponibilité à l'entraînement calculé par Garmin."""
+
+    __tablename__ = "training_readiness"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    date = Column(String, index=True, nullable=False)
+    score = Column(Integer)
+    level = Column(String)
+    sleep_score = Column(Integer)
+    recovery_time_hours = Column(Float)
+    hrv_factor_percent = Column(Float)
+    acute_load = Column(Float)
+    raw = Column(JSON)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "date", name="uq_readiness_user_date"),
+    )
+
+
+class RacePrediction(Base):
+    """Temps de course prédits par Garmin sur les distances de référence."""
+
+    __tablename__ = "race_predictions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    date = Column(String, index=True, nullable=False)
+    time_5k_seconds = Column(Integer)
+    time_10k_seconds = Column(Integer)
+    time_half_seconds = Column(Integer)
+    time_marathon_seconds = Column(Integer)
+    raw = Column(JSON)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "date", name="uq_prediction_user_date"),
+    )
+
+
+class Goal(Base):
+    """Objectif hebdomadaire, une ligne par métrique suivie.
+
+    La semaine est calendaire (lundi → dimanche) : c'est ce qu'attend un
+    utilisateur qui parle de « cette semaine », contrairement aux fenêtres
+    glissantes de /stats/weekly.
+    """
+
+    __tablename__ = "goals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    # distance_km · activites · duree_minutes · pas (moyenne par jour)
+    metrique = Column(String, nullable=False)
+    cible = Column(Float, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "metrique", name="uq_goal_user_metrique"),
+    )
+
+
 class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"
 

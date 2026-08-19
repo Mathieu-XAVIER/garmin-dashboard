@@ -11,7 +11,10 @@ from datetime import date, datetime, timedelta
 import pytest
 
 from conftest import creer_utilisateur
-from database import Activity, DailyHealth, HRV, Sleep, SyncLog
+from database import (
+    Activity, BodyComposition, DailyHealth, Goal, HRV,
+    RacePrediction, Sleep, SyncLog, TrainingReadiness,
+)
 
 ROUTES_PROTEGEES = [
     "/activities/",
@@ -28,6 +31,14 @@ ROUTES_PROTEGEES = [
     "/profile/",
     "/preferences/nav",
     "/sync/status",
+    "/goals/",
+    "/goals/progress",
+    "/stats/calendar",
+    "/health/body-composition",
+    "/health/readiness",
+    "/health/readiness/latest",
+    "/export/activities.csv",
+    "/export/health.csv",
 ]
 
 
@@ -53,6 +64,10 @@ def _remplir(db, user_id: int, suffixe: str):
     db.add(Sleep(user_id=user_id, date=aujourdhui.isoformat(), duration_seconds=27000, sleep_score=80))
     db.add(HRV(user_id=user_id, date=aujourdhui.isoformat(), last_night_avg=60, status="BALANCED"))
     db.add(SyncLog(user_id=user_id, declencheur="manuel", started_at=datetime.utcnow(), statut="ok"))
+    db.add(BodyComposition(user_id=user_id, date=aujourdhui.isoformat(), weight_kg=72.5))
+    db.add(TrainingReadiness(user_id=user_id, date=aujourdhui.isoformat(), score=70))
+    db.add(RacePrediction(user_id=user_id, date=aujourdhui.isoformat(), time_5k_seconds=1200))
+    db.add(Goal(user_id=user_id, metrique="distance_km", cible=40))
     db.commit()
 
 
@@ -81,6 +96,12 @@ def test_un_utilisateur_ne_voit_que_ses_donnees(client, db):
     # Le journal de synchro est cloisonné lui aussi.
     for entetes in (entetes_a, entetes_b):
         assert len(client.get("/sync/status", headers=entetes).json()["historique"]) == 1
+
+    # Et les métriques ajoutées ensuite : une seule pesée, un seul objectif.
+    for entetes in (entetes_a, entetes_b):
+        assert len(client.get("/health/body-composition", headers=entetes).json()) == 1
+        assert len(client.get("/health/readiness", headers=entetes).json()) == 1
+        assert len(client.get("/goals/", headers=entetes).json()["objectifs"]) == 1
 
 
 def test_detail_activite_d_autrui_est_introuvable(client, db):
@@ -127,5 +148,8 @@ def test_suppression_de_compte_n_efface_que_ses_donnees(client, db):
     assert db.query(Activity).filter_by(user_id=id_a).count() == 0
     assert db.query(Activity).filter_by(user_id=id_b).count() == 1
     assert db.query(SyncLog).filter_by(user_id=id_b).count() == 1
+    for modele in (BodyComposition, TrainingReadiness, RacePrediction, Goal):
+        assert db.query(modele).filter_by(user_id=id_a).count() == 0
+        assert db.query(modele).filter_by(user_id=id_b).count() == 1
     # B reste pleinement fonctionnel.
     assert client.get("/stats/summary", headers=entetes_b).json()["total_activities"] == 1

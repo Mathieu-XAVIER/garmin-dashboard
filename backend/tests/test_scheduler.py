@@ -5,7 +5,10 @@ from datetime import date, datetime
 import pytest
 
 import scheduler
-from database import Activity, DailyHealth, HRV, Sleep, SyncLog, User
+from database import (
+    Activity, BodyComposition, DailyHealth, HRV, RacePrediction,
+    Sleep, SyncLog, TrainingReadiness, User,
+)
 
 
 # ── Parsing ───────────────────────────────────────────────────────────
@@ -114,6 +117,26 @@ class ClientSimule:
             raise RuntimeError("hrv indisponible")
         return {"hrvSummary": {"lastNight": 60}}
 
+    def get_body_composition(self, debut, fin):
+        if self.casse:
+            raise RuntimeError("pesées indisponibles")
+        return {"dateWeightList": [
+            {"date": f"{date.today().isoformat()}T06:00:00.0", "weight": 72500,
+             "bmi": 22.4, "bodyFat": 14.2, "muscleMass": 33000},
+        ]}
+
+    def get_training_readiness(self, jour):
+        if self.casse:
+            raise RuntimeError("disponibilité indisponible")
+        return [{"score": 72, "level": "READY", "sleepScore": 80, "recoveryTime": 6}]
+
+    def get_race_predictions(self, debut, fin):
+        if self.casse:
+            raise RuntimeError("prédictions indisponibles")
+        return [{"calendarDate": date.today().isoformat(),
+                 "time5000": 1200, "time10000": 2500,
+                 "time21097": 5400, "time42195": 11400}]
+
 
 @pytest.fixture
 def uid(client, entetes, db):
@@ -192,3 +215,104 @@ async def test_la_synchro_ne_bloque_pas_l_event_loop(uid, db):
 
     await scheduler.sync_user(ClientTemoin(), uid, db, days_back=0)
     assert threads_vus and threads_vus[0] != thread_appelant
+
+
+# ── Nouvelles métriques Garmin ────────────────────────────────────────
+
+
+def test_parse_pesee_convertit_les_grammes():
+    """Garmin exprime poids et masses en grammes."""
+    resultat = scheduler._parse_body_composition(
+        {"date": "2026-08-19T06:00:00.0", "weight": 72500,
+         "boneMass": 3200, "muscleMass": 33000, "bmi": 22.4}, user_id=1)
+    assert resultat["date"] == "2026-08-19"
+    assert resultat["weight_kg"] == 72.5
+    assert resultat["bone_mass_kg"] == 3.2
+    assert resultat["muscle_mass_kg"] == 33.0
+    assert resultat["bmi"] == 22.4
+
+
+def test_parse_pesee_accepte_un_horodatage_numerique():
+    resultat = scheduler._parse_body_composition(
+        {"date": 1755561600000, "weight": 70000}, user_id=1)
+    assert resultat["weight_kg"] == 70.0
+    assert len(resultat["date"]) == 10
+
+
+def test_parse_pesee_sans_date_ignoree():
+    assert scheduler._parse_body_composition({"weight": 70000}, user_id=1) is None
+
+
+def test_parse_disponibilite_depuis_une_liste():
+    resultat = scheduler._parse_training_readiness(
+        [{"score": 65, "level": "MODERATE", "sleepScore": 74}], "2026-08-19", user_id=1)
+    assert resultat["score"] == 65
+    assert resultat["level"] == "MODERATE"
+
+
+@pytest.mark.parametrize("brut", [[], {}, None, [{"level": "READY"}]])
+def test_parse_disponibilite_sans_score(brut):
+    assert scheduler._parse_training_readiness(brut, "2026-08-19", user_id=1) is None
+
+
+def test_parse_predictions_de_course():
+    resultat = scheduler._parse_race_prediction(
+        [{"calendarDate": "2026-08-19", "time5000": 1200, "time10000": 2500,
+          "time21097": 5400, "time42195": 11400}], user_id=1)
+    assert resultat["time_5k_seconds"] == 1200
+    assert resultat["time_marathon_seconds"] == 11400
+
+
+def test_parse_predictions_retient_la_plus_recente():
+    resultat = scheduler._parse_race_prediction([
+        {"calendarDate": "2026-07-01", "time5000": 1300},
+        {"calendarDate": "2026-08-19", "time5000": 1200},
+    ], user_id=1)
+    assert resultat["date"] == "2026-08-19"
+    assert resultat["time_5k_seconds"] == 1200
+
+
+@pytest.mark.parametrize("brut", [[], {}, None, [{"calendarDate": "2026-08-19"}]])
+def test_parse_predictions_sans_temps(brut):
+    assert scheduler._parse_race_prediction(brut, user_id=1) is None
+
+
+async def test_synchro_ecrit_les_nouvelles_metriques(uid, db):
+    resume = await scheduler.sync_user(ClientSimule(), uid, db, days_back=0)
+    assert resume["body_composition"] == 1
+    assert resume["readiness"] == 1
+    assert resume["race_predictions"] == 1
+    assert db.query(BodyComposition).filter_by(user_id=uid).one().weight_kg == 72.5
+    assert db.query(TrainingReadiness).filter_by(user_id=uid).one().score == 72
+    assert db.query(RacePrediction).filter_by(user_id=uid).one().time_5k_seconds == 1200
+
+
+async def test_disponibilite_limitee_aux_derniers_jours(uid, db, monkeypatch):
+    """Un appel par jour : inutile de remonter 90 jours d'historique."""
+    jours_demandes = []
+
+    class ClientTemoin(ClientSimule):
+        def get_training_readiness(self, jour):
+            jours_demandes.append(jour)
+            return []
+
+    monkeypatch.setattr(scheduler, "JOURS_READINESS", 2)
+    await scheduler.sync_user(ClientTemoin(), uid, db, days_back=30)
+    assert len(jours_demandes) == 3  # aujourd'hui + 2 jours
+
+
+async def test_les_appels_de_plage_ne_sont_faits_qu_une_fois(uid, db):
+    """Pesées et prédictions coûtent un seul appel, pas un par jour."""
+    appels = {"pesees": 0, "predictions": 0}
+
+    class ClientTemoin(ClientSimule):
+        def get_body_composition(self, debut, fin):
+            appels["pesees"] += 1
+            return {}
+
+        def get_race_predictions(self, debut, fin):
+            appels["predictions"] += 1
+            return {}
+
+    await scheduler.sync_user(ClientTemoin(), uid, db, days_back=30)
+    assert appels == {"pesees": 1, "predictions": 1}
