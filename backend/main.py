@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, Depends, Request
+from fastapi import FastAPI, Depends, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -17,7 +17,7 @@ from slowapi.errors import RateLimitExceeded
 
 from database import init_db, get_db, User
 from garmin_manager import GarminManager
-from scheduler import sync_user, sync_all_users, setup_scheduler
+from scheduler import sync_user, sync_all_users, setup_scheduler, syncs_en_cours
 from auth import get_current_user
 from discord_logger import setup_discord_logging
 from routes.activities import router as activities_router
@@ -41,8 +41,11 @@ async def lifespan(app: FastAPI):
     app.state.garmin_manager = GarminManager()
     logger.info("Base de données initialisée ✓")
 
-    interval = int(os.getenv("SYNC_INTERVAL_MINUTES", "60"))
-    setup_scheduler(app.state.garmin_manager, interval_minutes=interval)
+    if os.getenv("RUN_SCHEDULER", "true").lower() in ("1", "true", "yes"):
+        interval = int(os.getenv("SYNC_INTERVAL_MINUTES", "60"))
+        setup_scheduler(app.state.garmin_manager, interval_minutes=interval)
+    else:
+        logger.info("Scheduler désactivé sur ce process (RUN_SCHEDULER=false)")
     yield
     logger.info("Arrêt de l'application")
 
@@ -83,8 +86,10 @@ def root():
 
 
 @app.post("/sync")
+@limiter.limit("6/hour")
 async def manual_sync(
-    days: int = 7,
+    request: Request,
+    days: int = Query(7, ge=1, le=365),
     current_user: User = Depends(get_current_user),
     db=Depends(get_db),
 ):
@@ -92,7 +97,15 @@ async def manual_sync(
     client = manager.get_client(current_user)
     if not client:
         return {"status": "error", "message": "Identifiants Garmin non configurés"}
-    summary = await sync_user(client, current_user.id, db, days_back=days)
+
+    if current_user.id in syncs_en_cours:
+        raise HTTPException(409, "Une synchronisation est déjà en cours")
+
+    syncs_en_cours.add(current_user.id)
+    try:
+        summary = await sync_user(client, current_user.id, db, days_back=days)
+    finally:
+        syncs_en_cours.discard(current_user.id)
     return {"status": "ok", "summary": summary}
 
 

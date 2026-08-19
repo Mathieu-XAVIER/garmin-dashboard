@@ -9,6 +9,7 @@ from datetime import date, timedelta
 from typing import Optional
 
 from database import get_db, Activity, User
+from date_utils import day_start
 from auth import get_current_user
 
 router = APIRouter(prefix="/activities", tags=["activities"])
@@ -39,7 +40,7 @@ def recent_activities(
     since = date.today() - timedelta(days=days)
     items = (
         db.query(Activity)
-        .filter(Activity.user_id == current_user.id, Activity.start_time >= since.isoformat())
+        .filter(Activity.user_id == current_user.id, Activity.start_time >= day_start(since))
         .order_by(desc(Activity.start_time))
         .all()
     )

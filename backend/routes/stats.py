@@ -8,6 +8,7 @@ from sqlalchemy import func, desc
 from datetime import date, timedelta
 
 from database import get_db, Activity, DailyHealth, Sleep, HRV, User
+from date_utils import day_start, day_after
 from auth import get_current_user
 
 router = APIRouter(prefix="/stats", tags=["stats"])
@@ -51,8 +52,8 @@ def weekly_stats(
         week_start = week_end - timedelta(days=6)
         acts = db.query(Activity).filter(
             Activity.user_id == uid,
-            Activity.start_time >= week_start.isoformat(),
-            Activity.start_time <= week_end.isoformat(),
+            Activity.start_time >= day_start(week_start),
+            Activity.start_time < day_after(week_end),
         ).all()
         health_rows = db.query(DailyHealth).filter(
             DailyHealth.user_id == uid,
@@ -84,7 +85,7 @@ def training_load(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    since = (date.today() - timedelta(days=days)).isoformat()
+    since = day_start(date.today() - timedelta(days=days))
     acts = db.query(Activity).filter(
         Activity.user_id == current_user.id,
         Activity.start_time >= since,
