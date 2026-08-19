@@ -3,7 +3,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/login',          name: 'login',           component: () => import('../views/LoginView.vue'),          meta: { public: true } },
+    { path: '/login',           name: 'login',            component: () => import('../views/LoginView.vue'),           meta: { public: true } },
+    { path: '/forgot-password', name: 'forgot-password',  component: () => import('../views/ForgotPasswordView.vue'),  meta: { public: true } },
+    { path: '/reset-password',  name: 'reset-password',   component: () => import('../views/ResetPasswordView.vue'),   meta: { public: true } },
     { path: '/',               name: 'dashboard',       component: () => import('../views/DashboardView.vue') },
     { path: '/activities',     name: 'activities',      component: () => import('../views/ActivitiesView.vue') },
     { path: '/activities/:id', name: 'activity-detail', component: () => import('../views/ActivityDetailView.vue') },
@@ -19,7 +21,7 @@ router.beforeEach((to, _from, next) => {
   const token = localStorage.getItem('access_token')
   if (!to.meta.public && !token) {
     next('/login')
-  } else if (to.path === '/login' && token) {
+  } else if (to.name === 'login' && token) {
     next('/')
   } else {
     next()

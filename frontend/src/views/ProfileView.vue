@@ -46,6 +46,71 @@
           </div>
           <p v-if="garminMsg" class="garmin-msg" :class="garminMsgType">{{ garminMsg }}</p>
         </form>
+
+        <p v-if="garminMsg && !showGarminForm" class="garmin-msg" :class="garminMsgType">{{ garminMsg }}</p>
+
+        <!-- Code de vérification Garmin (MFA) -->
+        <form v-if="authStore.user?.garmin_mfa_pending" @submit.prevent="handleSubmitMfa" class="mfa-form">
+          <label class="mfa-label" for="code-mfa">Code de vérification Garmin</label>
+          <p class="mfa-hint">
+            Garmin protège ce compte par double authentification. Saisissez le code
+            reçu par e-mail ou généré par votre application d'authentification.
+          </p>
+          <div class="field-inline">
+            <input id="code-mfa" v-model="codeMfa" inputmode="numeric" autocomplete="one-time-code"
+                   placeholder="123456" required />
+            <button type="submit" class="btn-sm btn-primary" :disabled="envoiMfa">
+              {{ envoiMfa ? 'Vérification…' : 'Valider' }}
+            </button>
+          </div>
+        </form>
+
+        <!-- Mot de passe du compte -->
+        <h3 class="subsection-title">Mot de passe</h3>
+
+        <div v-if="!showPasswordForm" class="garmin-status">
+          <span class="garmin-connected mono">••••••••</span>
+          <button class="btn-sm" @click="showPasswordForm = true">Modifier</button>
+        </div>
+
+        <form v-else @submit.prevent="handleChangePassword" class="garmin-form">
+          <div class="field-inline">
+            <input v-model="motDePasseActuel" type="password" placeholder="Mot de passe actuel" required autocomplete="current-password" />
+            <input v-model="nouveauMotDePasse" type="password" placeholder="Nouveau (8 car. min.)" required autocomplete="new-password" />
+            <input v-model="confirmationMotDePasse" type="password" placeholder="Confirmation" required autocomplete="new-password" />
+          </div>
+          <div class="garmin-form-actions">
+            <button type="submit" class="btn-sm btn-primary" :disabled="changementEnCours">
+              {{ changementEnCours ? 'Enregistrement…' : 'Enregistrer' }}
+            </button>
+            <button type="button" class="btn-sm" @click="showPasswordForm = false">Annuler</button>
+          </div>
+        </form>
+
+        <p v-if="motDePasseMsg" class="garmin-msg" :class="motDePasseMsgType">{{ motDePasseMsg }}</p>
+
+        <!-- Synchronisation -->
+        <h3 class="subsection-title">Synchronisation</h3>
+
+        <div v-if="derniereSynchro" class="synchro-bloc">
+          <div class="synchro-ligne">
+            <span class="synchro-statut" :class="`statut-${derniereSynchro.statut}`">
+              {{ LIBELLE_STATUT[derniereSynchro.statut] ?? derniereSynchro.statut }}
+            </span>
+            <span class="synchro-detail mono">
+              {{ fmtDateHeure(derniereSynchro.finished_at ?? derniereSynchro.started_at) }}
+              · {{ LIBELLE_DECLENCHEUR[derniereSynchro.declencheur] ?? derniereSynchro.declencheur }}
+            </span>
+          </div>
+          <p class="synchro-compteurs mono">
+            {{ derniereSynchro.activities }} activités ·
+            {{ derniereSynchro.daily_health }} jours de santé ·
+            {{ derniereSynchro.sleep }} nuits ·
+            {{ derniereSynchro.hrv }} HRV
+          </p>
+          <p v-if="derniereSynchro.erreur" class="synchro-erreur">{{ derniereSynchro.erreur }}</p>
+        </div>
+        <p v-else class="synchro-vide">Aucune synchronisation enregistrée pour l'instant.</p>
       </div>
     </section>
 
@@ -222,13 +287,24 @@
 import { ref, computed, onMounted } from 'vue'
 import { useProfileStore } from '../stores/profile'
 import { useAuthStore } from '../stores/auth'
+import { useGarminStore } from '../stores/garmin'
 import SkeletonLoader from '../components/SkeletonLoader.vue'
 import LineChart from '../components/charts/LineChart.vue'
 
 const store = useProfileStore()
 const authStore = useAuthStore()
+const garminStore = useGarminStore()
 
 const showGarminForm = ref(false)
+const showPasswordForm = ref(false)
+const codeMfa = ref('')
+const envoiMfa = ref(false)
+const motDePasseActuel = ref('')
+const nouveauMotDePasse = ref('')
+const confirmationMotDePasse = ref('')
+const motDePasseMsg = ref('')
+const motDePasseMsgType = ref('')
+const changementEnCours = ref(false)
 const garminEmail = ref('')
 const garminPassword = ref('')
 const savingGarmin = ref(false)
@@ -243,8 +319,16 @@ async function handleSaveGarmin() {
     showGarminForm.value = false
     garminEmail.value = ''
     garminPassword.value = ''
-    garminMsg.value = result.credentials_valid ? 'Identifiants valides' : 'Identifiants sauvegardés (connexion Garmin non vérifiée)'
-    garminMsgType.value = result.credentials_valid ? 'success' : 'warning'
+    if (result.mfa_required) {
+      garminMsg.value = result.message
+      garminMsgType.value = 'warning'
+    } else if (result.credentials_valid) {
+      garminMsg.value = 'Identifiants valides — synchronisation initiale lancée'
+      garminMsgType.value = 'success'
+    } else {
+      garminMsg.value = result.message ?? 'Identifiants enregistrés, mais Garmin a refusé la connexion'
+      garminMsgType.value = 'error'
+    }
   } catch {
     garminMsg.value = 'Erreur lors de la sauvegarde'
     garminMsgType.value = 'error'
@@ -253,9 +337,65 @@ async function handleSaveGarmin() {
   }
 }
 
+async function handleSubmitMfa() {
+  envoiMfa.value = true
+  garminMsg.value = ''
+  try {
+    await authStore.submitGarminMfa(codeMfa.value)
+    codeMfa.value = ''
+    garminMsg.value = 'Compte Garmin vérifié — synchronisation initiale lancée'
+    garminMsgType.value = 'success'
+  } catch (e: any) {
+    garminMsg.value = e.response?.data?.detail ?? 'Code refusé'
+    garminMsgType.value = 'error'
+  } finally {
+    envoiMfa.value = false
+  }
+}
+
 async function handleDeleteGarmin() {
   await authStore.deleteGarminCredentials()
 }
+
+async function handleChangePassword() {
+  motDePasseMsg.value = ''
+  if (nouveauMotDePasse.value !== confirmationMotDePasse.value) {
+    motDePasseMsg.value = 'Les deux mots de passe ne correspondent pas'
+    motDePasseMsgType.value = 'error'
+    return
+  }
+  changementEnCours.value = true
+  try {
+    await authStore.changePassword(motDePasseActuel.value, nouveauMotDePasse.value)
+    motDePasseActuel.value = ''
+    nouveauMotDePasse.value = ''
+    confirmationMotDePasse.value = ''
+    showPasswordForm.value = false
+    motDePasseMsg.value = 'Mot de passe mis à jour'
+    motDePasseMsgType.value = 'success'
+  } catch (e: any) {
+    motDePasseMsg.value = e.response?.data?.detail ?? 'Erreur lors du changement'
+    motDePasseMsgType.value = 'error'
+  } finally {
+    changementEnCours.value = false
+  }
+}
+
+function fmtDateHeure(valeur: string | null) {
+  if (!valeur) return '—'
+  return new Date(valeur + 'Z').toLocaleString('fr-FR', {
+    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+  })
+}
+
+const LIBELLE_STATUT: Record<string, string> = {
+  ok: 'Réussie', partiel: 'Partielle', erreur: 'Échec',
+}
+const LIBELLE_DECLENCHEUR: Record<string, string> = {
+  auto: 'automatique', manuel: 'manuelle', initiale: 'initiale',
+}
+
+const derniereSynchro = computed(() => garminStore.syncStatus?.derniere ?? null)
 
 const fitness       = computed(() => store.data?.fitness_score ?? {})
 const vo2maxHistory = computed(() => store.data?.vo2max_history ?? [])
@@ -301,7 +441,10 @@ function pbValue(key: string | number | symbol, val: any) {
   return `${val.value_km} km`
 }
 
-onMounted(() => store.fetchProfile())
+onMounted(() => {
+  store.fetchProfile()
+  garminStore.fetchSyncStatus().catch(() => {})
+})
 </script>
 
 <style scoped>
@@ -400,5 +543,25 @@ onMounted(() => store.fetchProfile())
   .account-card { padding: 16px; }
   .field-inline { flex-direction: column; }
   .section { margin-bottom: 20px; }
+}
+
+/* ── MFA, mot de passe, synchronisation ─────────────────── */
+.mfa-form { margin-top: 14px; padding: 14px; background: var(--orange-dim); border: 1px solid rgba(255, 107, 53, 0.25); border-radius: var(--radius); }
+.mfa-label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--orange); font-weight: 600; margin-bottom: 6px; }
+.mfa-hint { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 10px; }
+
+.synchro-bloc { margin-top: 10px; }
+.synchro-ligne { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.synchro-statut { font-size: 11px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.05em; padding: 3px 10px; border-radius: 20px; }
+.statut-ok      { background: var(--teal-dim);   color: var(--teal); }
+.statut-partiel { background: var(--orange-dim); color: var(--orange); }
+.statut-erreur  { background: rgba(239, 68, 68, 0.12); color: #EF4444; }
+.synchro-detail { font-size: 12px; color: var(--text-muted); }
+.synchro-compteurs { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+.synchro-erreur { font-size: 12px; color: var(--orange); margin-top: 8px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.synchro-vide { font-size: 13px; color: var(--text-muted); margin-top: 10px; }
+
+@media (max-width: 768px) {
+  .synchro-ligne { gap: 6px; }
 }
 </style>

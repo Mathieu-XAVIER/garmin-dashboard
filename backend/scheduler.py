@@ -9,7 +9,7 @@ from datetime import date, datetime, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.orm import Session
 
-from database import SessionLocal, Activity, DailyHealth, Sleep, HRV, User
+from database import SessionLocal, Activity, DailyHealth, Sleep, HRV, User, SyncLog
 from garmin_client import GarminClient
 
 logger = logging.getLogger(__name__)
@@ -196,9 +196,56 @@ def _sync_user_blocking(client: GarminClient, user_id: int, db: Session, days_ba
     return summary
 
 
-async def sync_user(client: GarminClient, user_id: int, db: Session, days_back: int = 7):
+def journaliser_echec(db: Session, user_id: int, declencheur: str, message: str):
+    """Trace un échec survenu avant même de pouvoir synchroniser."""
+    maintenant = datetime.utcnow()
+    db.add(SyncLog(
+        user_id=user_id, declencheur=declencheur, started_at=maintenant,
+        finished_at=maintenant, statut="erreur", erreur=message,
+    ))
+    db.commit()
+
+
+def _sync_avec_journal(client: GarminClient, user_id: int, db: Session,
+                       days_back: int, declencheur: str):
+    log = SyncLog(
+        user_id=user_id, declencheur=declencheur,
+        started_at=datetime.utcnow(), days_back=days_back,
+    )
+    db.add(log)
+    db.commit()
+
+    try:
+        summary = _sync_user_blocking(client, user_id, db, days_back)
+    except Exception as e:
+        db.rollback()
+        log.finished_at = datetime.utcnow()
+        log.statut = "erreur"
+        log.erreur = str(e)[:2000]
+        db.commit()
+        raise
+
+    recupere = sum(summary[k] for k in ("activities", "daily_health", "sleep", "hrv"))
+    log.finished_at = datetime.utcnow()
+    log.activities = summary["activities"]
+    log.daily_health = summary["daily_health"]
+    log.sleep = summary["sleep"]
+    log.hrv = summary["hrv"]
+    if not summary["errors"]:
+        log.statut = "ok"
+    else:
+        log.statut = "partiel" if recupere else "erreur"
+        log.erreur = "\n".join(str(e) for e in summary["errors"][:5])[:2000]
+    db.commit()
+    return summary
+
+
+async def sync_user(client: GarminClient, user_id: int, db: Session,
+                    days_back: int = 7, declencheur: str = "manuel"):
     """Déporte la synchro dans un thread pour ne pas bloquer l'event loop."""
-    return await asyncio.to_thread(_sync_user_blocking, client, user_id, db, days_back)
+    return await asyncio.to_thread(
+        _sync_avec_journal, client, user_id, db, days_back, declencheur
+    )
 
 
 async def sync_all_users(manager, days_back: int = 2):
@@ -211,10 +258,19 @@ async def sync_all_users(manager, days_back: int = 2):
         for user in users:
             try:
                 client = manager.get_client(user)
-                if client and await asyncio.to_thread(lambda: client.client):
-                    await sync_user(client, user.id, db, days_back)
+                if not client:
+                    continue
+                if not await asyncio.to_thread(lambda: client.client):
+                    journaliser_echec(
+                        db, user.id, "auto",
+                        "Connexion à Garmin Connect impossible : identifiants "
+                        "invalides, code MFA requis, ou quota d'appels atteint.",
+                    )
+                    continue
+                await sync_user(client, user.id, db, days_back, "auto")
             except Exception as e:
-                logger.error(f"Erreur synchro utilisateur {user.id}: {e}")
+                logger.error(f"Erreur synchro utilisateur {user.id}: {e}", exc_info=True)
+                journaliser_echec(db, user.id, "auto", str(e)[:2000])
     finally:
         db.close()
 

@@ -22,13 +22,17 @@
           <input id="password" v-model="password" type="password" placeholder="••••••••" required autocomplete="current-password" />
         </div>
 
-        <p v-if="mode === 'register'" class="hint">6 caractères minimum</p>
+        <p v-if="mode === 'register'" class="hint">8 caractères minimum</p>
 
         <p v-if="authStore.error" class="error-msg">{{ authStore.error }}</p>
 
         <button type="submit" class="submit-btn" :disabled="authStore.loading">
           {{ authStore.loading ? 'Chargement…' : (mode === 'login' ? 'Se connecter' : 'Créer un compte') }}
         </button>
+
+        <RouterLink v-if="mode === 'login'" to="/forgot-password" class="lien-oubli">
+          Mot de passe oublié ?
+        </RouterLink>
       </form>
     </div>
   </div>
@@ -36,6 +40,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
@@ -187,4 +192,14 @@ async function handleSubmit() {
 }
 .submit-btn:hover:not(:disabled) { opacity: 0.9; }
 .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.lien-oubli {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.15s;
+  margin-top: 4px;
+}
+.lien-oubli:hover { color: var(--teal); }
 </style>

@@ -15,7 +15,9 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from database import init_db, get_db, User
+from sqlalchemy import desc
+
+from database import init_db, get_db, User, SyncLog
 from garmin_manager import GarminManager
 from scheduler import sync_user, sync_all_users, setup_scheduler, syncs_en_cours
 from auth import get_current_user
@@ -103,10 +105,51 @@ async def manual_sync(
 
     syncs_en_cours.add(current_user.id)
     try:
-        summary = await sync_user(client, current_user.id, db, days_back=days)
+        summary = await sync_user(client, current_user.id, db,
+                                  days_back=days, declencheur="manuel")
     finally:
         syncs_en_cours.discard(current_user.id)
     return {"status": "ok", "summary": summary}
+
+
+def _serialiser_log(log: SyncLog) -> dict:
+    return {
+        "id": log.id,
+        "declencheur": log.declencheur,
+        "started_at": log.started_at,
+        "finished_at": log.finished_at,
+        "statut": log.statut,
+        "days_back": log.days_back,
+        "activities": log.activities,
+        "daily_health": log.daily_health,
+        "sleep": log.sleep,
+        "hrv": log.hrv,
+        "erreur": log.erreur,
+    }
+
+
+@app.get("/sync/status")
+def sync_status(
+    limit: int = Query(10, ge=1, le=50),
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    """Dernières synchros de l'utilisateur, la plus récente en tête."""
+    logs = (
+        db.query(SyncLog)
+        .filter(SyncLog.user_id == current_user.id)
+        .order_by(desc(SyncLog.started_at))
+        .limit(limit)
+        .all()
+    )
+    return {
+        "en_cours": current_user.id in syncs_en_cours,
+        "a_des_identifiants": bool(
+            current_user.garmin_email and current_user.garmin_password_encrypted
+        ),
+        "derniere": _serialiser_log(logs[0]) if logs else None,
+        "historique": [_serialiser_log(l) for l in logs],
+    }
 
 
 @app.get("/health-check")
