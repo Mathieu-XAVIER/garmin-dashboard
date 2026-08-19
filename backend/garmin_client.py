@@ -17,17 +17,53 @@ logger = logging.getLogger(__name__)
 class GarminClient:
     CONNECT_COOLDOWN = 300
 
-    def __init__(self, email: str, password: str):
+    def __init__(self, email: str, password: str, tokens: str | None = None,
+                 on_tokens=None):
         self.email = email
         self.password = password
+        self.tokens = tokens
+        # Appelé avec les jetons sérialisés dès qu'une session valide est
+        # établie, pour que l'appelant les persiste.
+        self.on_tokens = on_tokens
         self._client = None
         self._last_failed_attempt = 0.0
 
-    def connect(self):
+    def _memoriser_tokens(self, garmin):
+        if not self.on_tokens:
+            return
         try:
-            self._client = Garmin(self.email, self.password)
-            self._client.login()
+            tokens = garmin.client.dumps()
+        except Exception as e:
+            logger.debug(f"Sérialisation des jetons Garmin impossible : {e}")
+            return
+        if tokens and tokens != self.tokens:
+            self.tokens = tokens
+            self.on_tokens(tokens)
+
+    def connect(self):
+        """Ouvre une session Garmin. Retourne True si connecté.
+
+        Reprend d'abord les jetons mémorisés : c'est ce qui évite un login
+        SSO complet (et un MFA) à chaque redémarrage du backend.
+        """
+        if self.tokens:
+            try:
+                garmin = Garmin(self.email, self.password)
+                garmin.login(tokenstore=self.tokens)
+                self._client = garmin
+                logger.info("Session Garmin reprise depuis les jetons ✓")
+                self._memoriser_tokens(garmin)
+                return True
+            except Exception as e:
+                logger.info(f"Jetons Garmin inutilisables, login complet : {e}")
+                self.tokens = None
+
+        try:
+            garmin = Garmin(self.email, self.password)
+            garmin.login()
+            self._client = garmin
             logger.info("Connecté à Garmin Connect ✓")
+            self._memoriser_tokens(garmin)
             return True
         except GarminConnectAuthenticationError as e:
             logger.error(f"Erreur d'authentification Garmin : {e}")
@@ -42,6 +78,28 @@ class GarminClient:
             self._client = None
             self._last_failed_attempt = time.time()
             return False
+
+    # ── MFA ───────────────────────────────────────────────────────────
+    def demarrer_login_mfa(self):
+        """Lance un login en s'arrêtant si Garmin réclame un code MFA.
+
+        Retourne ("mfa", state) si un code est attendu, ("ok", None) si la
+        session est ouverte sans MFA.
+        """
+        garmin = Garmin(self.email, self.password, return_on_mfa=True)
+        statut, state = garmin.login()
+        if statut == "needs_mfa":
+            return "mfa", (garmin, state)
+        self._client = garmin
+        self._memoriser_tokens(garmin)
+        return "ok", None
+
+    def terminer_login_mfa(self, garmin, state, code: str):
+        """Rejoue le login avec le code MFA saisi par l'utilisateur."""
+        garmin.resume_login(state, code)
+        self._client = garmin
+        self._memoriser_tokens(garmin)
+        return True
 
     @property
     def client(self):

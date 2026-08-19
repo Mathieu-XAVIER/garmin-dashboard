@@ -16,6 +16,7 @@ export const useGarminStore = defineStore('garmin', () => {
   const loading = ref(false)
   const lastSync = ref<Date | null>(null)
   const error = ref<string | null>(null)
+  const syncStatus = ref<any>(null)
 
   // ── Getters ──────────────────────────────────────────────
   const latestActivity = computed(() => activities.value[0] ?? null)
@@ -63,9 +64,17 @@ export const useGarminStore = defineStore('garmin', () => {
     hrvHistory.value = data
   }
 
+  async function fetchSyncStatus() {
+    const { data } = await api.get('/sync/status')
+    syncStatus.value = data
+    if (data.derniere?.finished_at) {
+      lastSync.value = new Date(data.derniere.finished_at + 'Z')
+    }
+  }
+
   async function triggerSync(days = 7) {
     await api.post(`/sync?days=${days}`)
-    lastSync.value = new Date()
+    await fetchSyncStatus()
   }
 
   async function loadDashboard() {
@@ -80,12 +89,12 @@ export const useGarminStore = defineStore('garmin', () => {
         fetchTodayHealth(),
         fetchSleepHistory(14),
         fetchHrvHistory(14),
+        fetchSyncStatus(),
       ])
       const failures = results.filter(r => r.status === 'rejected')
       if (failures.length) {
         error.value = `${failures.length} requête(s) en erreur`
       }
-      lastSync.value = new Date()
     } catch (e: any) {
       error.value = e.message ?? 'Erreur de connexion à l\'API'
     } finally {
@@ -95,11 +104,11 @@ export const useGarminStore = defineStore('garmin', () => {
 
   return {
     summary, weeklyStats, activities, dailyHealth, todayHealth,
-    sleepHistory, hrvHistory, trainingLoad, loading, lastSync, error,
+    sleepHistory, hrvHistory, trainingLoad, loading, lastSync, error, syncStatus,
     latestActivity, latestSleep, latestHrv,
     fetchSummary, fetchWeeklyStats, fetchTrainingLoad, fetchActivities,
     fetchDailyHealth, fetchTodayHealth, fetchSleepHistory, fetchHrvHistory,
-    triggerSync, loadDashboard,
+    triggerSync, loadDashboard, fetchSyncStatus,
   }
 })
 

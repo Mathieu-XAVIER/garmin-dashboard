@@ -8,6 +8,7 @@ interface AuthUser {
   id: number
   email: string
   has_garmin_credentials: boolean
+  garmin_mfa_pending: boolean
   garmin_email: string | null
   created_at: string
   nav_preferences?: { hidden_tabs?: string[] } | null
@@ -86,8 +87,36 @@ export const useAuthStore = defineStore('auth', () => {
     if (user.value) {
       user.value.has_garmin_credentials = true
       user.value.garmin_email = garminEmail
+      user.value.garmin_mfa_pending = data.mfa_required
     }
     return data
+  }
+
+  async function submitGarminMfa(code: string) {
+    const { data } = await api.post('/auth/garmin-mfa', { code })
+    if (user.value) {
+      user.value.garmin_mfa_pending = false
+    }
+    return data
+  }
+
+  async function changePassword(currentPassword: string, newPassword: string) {
+    await api.put('/auth/password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    })
+  }
+
+  async function forgotPassword(emailAddress: string) {
+    const { data } = await api.post('/auth/forgot-password', { email: emailAddress })
+    return data.message as string
+  }
+
+  async function resetPassword(resetToken: string, newPassword: string) {
+    await api.post('/auth/reset-password', {
+      token: resetToken,
+      new_password: newPassword,
+    })
   }
 
   async function deleteGarminCredentials() {
@@ -101,6 +130,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user, token, loading, error, isAuthenticated,
     login, register, logout, fetchMe,
-    updateGarminCredentials, deleteGarminCredentials,
+    updateGarminCredentials, deleteGarminCredentials, submitGarminMfa,
+    changePassword, forgotPassword, resetPassword,
   }
 })

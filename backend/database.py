@@ -5,8 +5,8 @@ database.py — Modèles SQLAlchemy et initialisation SQLite
 import os
 
 from sqlalchemy import (
-    create_engine, Column, Integer, Float, String,
-    DateTime, JSON, ForeignKey, UniqueConstraint, text, inspect as sa_inspect
+    create_engine, Column, Integer, Float, String, Text,
+    DateTime, JSON, ForeignKey, UniqueConstraint, Index, text, inspect as sa_inspect
 )
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from datetime import datetime
@@ -30,6 +30,10 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     garmin_email = Column(String, nullable=True)
     garmin_password_encrypted = Column(String, nullable=True)
+    # Jetons de session Garmin sérialisés puis chiffrés (Fernet). Les
+    # conserver évite un login SSO complet — et donc un MFA — à chaque
+    # redémarrage, principale cause de blocage temporaire côté Garmin.
+    garmin_tokens_encrypted = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     nav_preferences = Column(JSON, nullable=True)
 
@@ -137,6 +141,42 @@ class HRV(Base):
     )
 
 
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    # Seul le hash est stocké : une fuite de la base ne permet pas de
+    # réinitialiser les mots de passe.
+    token_hash = Column(String, nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SyncLog(Base):
+    __tablename__ = "sync_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    # "auto" (scheduler), "manuel" (bouton) ou "initiale" (saisie des identifiants)
+    declencheur = Column(String, nullable=False)
+    started_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    finished_at = Column(DateTime, nullable=True)
+    # "ok", "partiel" (des erreurs mais des données récupérées) ou "erreur"
+    statut = Column(String, nullable=True)
+    days_back = Column(Integer, nullable=True)
+    activities = Column(Integer, default=0)
+    daily_health = Column(Integer, default=0)
+    sleep = Column(Integer, default=0)
+    hrv = Column(Integer, default=0)
+    erreur = Column(Text, nullable=True)
+
+    __table_args__ = (
+        Index("ix_sync_logs_user_started", "user_id", "started_at"),
+    )
+
+
 def get_db():
     db = SessionLocal()
     try:
@@ -145,30 +185,23 @@ def get_db():
         db.close()
 
 
+def _ajouter_colonne(inspector, table: str, colonne: str, type_sql: str):
+    """Ajoute une colonne si elle manque (migration sans Alembic)."""
+    if table not in inspector.get_table_names():
+        return
+    if colonne in [c["name"] for c in inspector.get_columns(table)]:
+        return
+    with engine.connect() as conn:
+        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {colonne} {type_sql}"))
+        conn.commit()
+
+
 def init_db():
     Base.metadata.create_all(bind=engine)
     inspector = sa_inspect(engine)
 
-    # Migration : colonne gps_track
-    act_cols = [c["name"] for c in inspector.get_columns("activities")]
-    if "gps_track" not in act_cols:
-        with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE activities ADD COLUMN gps_track JSON"))
-            conn.commit()
-
-    # Migration : colonne user_id sur toutes les tables de données
-    tables_to_migrate = ["activities", "daily_health", "sleep", "hrv"]
-    for table_name in tables_to_migrate:
-        if table_name in inspector.get_table_names():
-            cols = [c["name"] for c in inspector.get_columns(table_name)]
-            if "user_id" not in cols:
-                with engine.connect() as conn:
-                    conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN user_id INTEGER REFERENCES users(id)"))
-                    conn.commit()
-
-    # Migration : colonne nav_preferences sur users
-    user_cols = [c["name"] for c in inspector.get_columns("users")]
-    if "nav_preferences" not in user_cols:
-        with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE users ADD COLUMN nav_preferences JSON"))
-            conn.commit()
+    _ajouter_colonne(inspector, "activities", "gps_track", "JSON")
+    for table in ("activities", "daily_health", "sleep", "hrv"):
+        _ajouter_colonne(inspector, table, "user_id", "INTEGER REFERENCES users(id)")
+    _ajouter_colonne(inspector, "users", "nav_preferences", "JSON")
+    _ajouter_colonne(inspector, "users", "garmin_tokens_encrypted", "TEXT")
