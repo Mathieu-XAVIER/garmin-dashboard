@@ -9,4 +9,7 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+# Un seul worker : le scheduler APScheduler vit dans le process applicatif,
+# donc N workers = N synchros concurrentes sur le même compte Garmin.
+# Pour scaler, passer RUN_SCHEDULER=false sur les workers supplémentaires.
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

@@ -4,10 +4,11 @@ routes/profile.py — Vue profil : forme, tendances, récupération.
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, func
+from sqlalchemy import desc
 from datetime import date, timedelta
 
 from database import get_db, Activity, DailyHealth, Sleep, HRV, User
+from date_utils import day_start, day_after
 from auth import get_current_user
 
 router = APIRouter(prefix="/profile", tags=["profile"])
@@ -98,16 +99,32 @@ def _vo2max_history(db: Session, uid: int) -> list[dict]:
 
 
 def _load_balance(db: Session, today: date, uid: int) -> list[dict]:
+    debut = today - timedelta(weeks=15, days=42)
+    rows = (
+        db.query(Activity.start_time, Activity.training_load)
+        .filter(
+            Activity.user_id == uid,
+            Activity.start_time >= day_start(debut),
+            Activity.training_load.isnot(None),
+        )
+        .all()
+    )
+    charges = [(r.start_time.date(), r.training_load) for r in rows if r.start_time]
+
+    def moyenne(fin: date, jours: int) -> float:
+        depuis = fin - timedelta(days=jours)
+        return sum(c for j, c in charges if depuis <= j <= fin) / jours
+
     result = []
     for i in range(15, -1, -1):
         week_end = today - timedelta(weeks=i)
-        ctl = _avg_load(db, week_end, 42, uid)
-        atl = _avg_load(db, week_end, 7, uid)
+        ctl = moyenne(week_end, 42)
+        atl = moyenne(week_end, 7)
         result.append({
             "date": week_end.isoformat(),
-            "ctl": round(ctl, 1) if ctl else 0,
-            "atl": round(atl, 1) if atl else 0,
-            "tsb": round(ctl - atl, 1) if ctl else 0,
+            "ctl": round(ctl, 1),
+            "atl": round(atl, 1),
+            "tsb": round(ctl - atl, 1),
         })
     return result
 
@@ -214,31 +231,35 @@ def _personal_bests(db: Session, uid: int) -> dict:
 
 
 def _activity_streak(db: Session, today: date, uid: int) -> dict:
-    streak = 0
-    d = today
-    while True:
-        count = db.query(func.count(Activity.id)).filter(
+    rows = (
+        db.query(Activity.start_time)
+        .filter(
             Activity.user_id == uid,
-            func.date(Activity.start_time) == d.isoformat(),
-        ).scalar()
-        if count and count > 0:
-            streak += 1
-            d -= timedelta(days=1)
-        else:
-            break
+            Activity.start_time >= day_start(today - timedelta(days=365)),
+            Activity.start_time.isnot(None),
+        )
+        .all()
+    )
+    jours = {r.start_time.date() for r in rows if r.start_time}
+
+    # La série ne doit pas retomber à zéro chaque matin : tant que la séance
+    # du jour n'a pas eu lieu, on fait courir le compteur depuis la veille.
+    depart = today if today in jours else today - timedelta(days=1)
+    streak = 0
+    d = depart
+    while d in jours:
+        streak += 1
+        d -= timedelta(days=1)
+
     best = 0
     current = 0
     for i in range(90):
-        d = today - timedelta(days=i)
-        count = db.query(func.count(Activity.id)).filter(
-            Activity.user_id == uid,
-            func.date(Activity.start_time) == d.isoformat(),
-        ).scalar()
-        if count and count > 0:
+        if (today - timedelta(days=i)) in jours:
             current += 1
             best = max(best, current)
         else:
             current = 0
+
     return {"current_streak": streak, "best_streak_90d": best}
 
 
@@ -248,8 +269,8 @@ def _avg_load(db: Session, end_date: date, days: int, uid: int) -> float:
         db.query(Activity.training_load)
         .filter(
             Activity.user_id == uid,
-            Activity.start_time >= start.isoformat(),
-            Activity.start_time <= end_date.isoformat(),
+            Activity.start_time >= day_start(start),
+            Activity.start_time < day_after(end_date),
             Activity.training_load.isnot(None),
         )
         .all()

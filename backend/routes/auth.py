@@ -25,7 +25,7 @@ from auth import (
     get_current_user,
 )
 from garmin_client import GarminClient
-from scheduler import sync_user
+from scheduler import sync_user, syncs_en_cours
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +101,7 @@ async def update_garmin_credentials(
     credentials_valid = False
     client = GarminClient(body.garmin_email, body.garmin_password)
     try:
-        credentials_valid = client.connect()
+        credentials_valid = await asyncio.to_thread(client.connect)
     except Exception:
         credentials_valid = False
 
@@ -115,7 +115,7 @@ async def update_garmin_credentials(
     if credentials_valid:
         initial_days = int(os.getenv("INITIAL_SYNC_DAYS", "90"))
         logger.info(f"Synchro initiale de {initial_days} jours pour user {current_user.id}")
-        asyncio.create_task(_initial_sync(manager, current_user, initial_days))
+        asyncio.create_task(_initial_sync(manager, current_user.id, initial_days))
 
     return {
         "status": "ok",
@@ -124,17 +124,27 @@ async def update_garmin_credentials(
     }
 
 
-async def _initial_sync(manager, user, days):
+async def _initial_sync(manager, user_id: int, days: int):
     from database import SessionLocal
+
+    if user_id in syncs_en_cours:
+        logger.info(f"Synchro déjà en cours pour user {user_id}, initiale ignorée")
+        return
+
+    syncs_en_cours.add(user_id)
     db = SessionLocal()
     try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return
         client = manager.get_client(user)
-        if client and client.client:
-            await sync_user(client, user.id, db, days_back=days)
+        if client and await asyncio.to_thread(lambda: client.client):
+            await sync_user(client, user_id, db, days_back=days)
     except Exception as e:
-        logger.error(f"Erreur synchro initiale user {user.id}: {e}")
+        logger.error(f"Erreur synchro initiale user {user_id}: {e}", exc_info=True)
     finally:
         db.close()
+        syncs_en_cours.discard(user_id)
 
 
 @router.delete("/garmin-credentials")

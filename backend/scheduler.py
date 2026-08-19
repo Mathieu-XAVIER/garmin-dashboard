@@ -2,6 +2,7 @@
 scheduler.py — Synchronisation automatique des données Garmin (multi-utilisateurs).
 """
 
+import asyncio
 import logging
 from datetime import date, datetime, timedelta
 
@@ -13,6 +14,10 @@ from garmin_client import GarminClient
 
 logger = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
+
+# Utilisateurs dont une synchro est en cours — évite qu'une synchro manuelle
+# et la synchro initiale (ou deux clics) tapent le quota Garmin en parallèle.
+syncs_en_cours: set[int] = set()
 
 
 def _parse_start_time(value):
@@ -67,6 +72,7 @@ def _parse_daily_health(raw, target_date, user_id: int):
         "max_stress": raw.get("maxStressLevel"),
         "body_battery_high": raw.get("bodyBatteryHighestValue"),
         "body_battery_low": raw.get("bodyBatteryLowestValue"),
+        "avg_spo2": raw.get("averageSpo2") or raw.get("averageSpO2Value"),
         "resting_heart_rate": raw.get("restingHeartRate"),
         "avg_heart_rate": raw.get("averageHeartRate"),
         "raw": raw,
@@ -95,7 +101,7 @@ def _parse_sleep(raw, target_date, user_id: int):
         "awake_seconds": daily.get("awakeSleepSeconds"),
         "sleep_score": daily.get("sleepScores", {}).get("overall", {}).get("value"),
         "avg_spo2": daily.get("averageSpO2Value"),
-        "avg_hrv": daily.get("avgSleepStress"),
+        "avg_hrv": daily.get("avgOvernightHrv"),
         "avg_respiration": daily.get("averageRespirationValue"),
         "raw": raw,
     }
@@ -127,7 +133,8 @@ def _upsert(db, Model, filter_by, data):
         db.add(Model(**data))
 
 
-async def sync_user(client: GarminClient, user_id: int, db: Session, days_back: int = 7):
+def _sync_user_blocking(client: GarminClient, user_id: int, db: Session, days_back: int = 7):
+    """Corps de la synchro — 100 % bloquant (HTTP Garmin + SQL)."""
     summary = {"activities": 0, "daily_health": 0, "sleep": 0, "hrv": 0, "errors": []}
     today = date.today()
     start = today - timedelta(days=days_back)
@@ -189,6 +196,11 @@ async def sync_user(client: GarminClient, user_id: int, db: Session, days_back: 
     return summary
 
 
+async def sync_user(client: GarminClient, user_id: int, db: Session, days_back: int = 7):
+    """Déporte la synchro dans un thread pour ne pas bloquer l'event loop."""
+    return await asyncio.to_thread(_sync_user_blocking, client, user_id, db, days_back)
+
+
 async def sync_all_users(manager, days_back: int = 2):
     db = SessionLocal()
     try:
@@ -199,7 +211,7 @@ async def sync_all_users(manager, days_back: int = 2):
         for user in users:
             try:
                 client = manager.get_client(user)
-                if client and client.client:
+                if client and await asyncio.to_thread(lambda: client.client):
                     await sync_user(client, user.id, db, days_back)
             except Exception as e:
                 logger.error(f"Erreur synchro utilisateur {user.id}: {e}")

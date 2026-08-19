@@ -16,10 +16,13 @@ env/
 # Environnement
 .env
 
-# Base de données
+# Base de données (jamais dans le repo : données de santé personnelles)
 *.db
 *.sqlite
 *.sqlite3
+*.db-journal
+*.db-wal
+*.bak
 
 # Node / Vue
 frontend/node_modules/
@@ -41,4 +44,3 @@ logs/
 *.swp
 *.swo
 .DS_Store
-/s

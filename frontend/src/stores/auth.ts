@@ -69,8 +69,12 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = data
       const navStore = useNavStore()
       navStore.syncFromAuth(data)
-    } catch {
-      logout()
+    } catch (e: any) {
+      // Seul un token réellement invalide justifie une déconnexion :
+      // une coupure réseau ou un backend qui redémarre ne doit rien effacer.
+      if (e.response?.status === 401) {
+        logout()
+      }
     }
   }
 
