@@ -32,9 +32,13 @@ frontend/.env.*.local
 *.log
 logs/
 
+# Claude Code (config locale, peut contenir des données personnelles)
+.claude/settings.local.json
+
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 .DS_Store
+/s
