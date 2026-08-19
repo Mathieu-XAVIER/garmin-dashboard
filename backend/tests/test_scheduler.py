@@ -130,12 +130,12 @@ class ClientSimule:
             raise RuntimeError("disponibilité indisponible")
         return [{"score": 72, "level": "READY", "sleepScore": 80, "recoveryTime": 6}]
 
-    def get_race_predictions(self, debut, fin):
+    def get_race_predictions(self):
         if self.casse:
             raise RuntimeError("prédictions indisponibles")
-        return [{"calendarDate": date.today().isoformat(),
-                 "time5000": 1200, "time10000": 2500,
-                 "time21097": 5400, "time42195": 11400}]
+        return {"calendarDate": date.today().isoformat(),
+                "time5K": 1200, "time10K": 2500,
+                "timeHalfMarathon": 5400, "timeMarathon": 11400}
 
 
 @pytest.fixture
@@ -256,17 +256,28 @@ def test_parse_disponibilite_sans_score(brut):
 
 
 def test_parse_predictions_de_course():
+    """Format réellement renvoyé par Garmin : clés par distance symbolique."""
     resultat = scheduler._parse_race_prediction(
-        [{"calendarDate": "2026-08-19", "time5000": 1200, "time10000": 2500,
-          "time21097": 5400, "time42195": 11400}], user_id=1)
+        {"calendarDate": "2026-08-19", "time5K": 1564, "time10K": 3369,
+         "timeHalfMarathon": 7774, "timeMarathon": 17755}, user_id=1)
+    assert resultat["time_5k_seconds"] == 1564
+    assert resultat["time_10k_seconds"] == 3369
+    assert resultat["time_half_seconds"] == 7774
+    assert resultat["time_marathon_seconds"] == 17755
+
+
+def test_parse_predictions_accepte_les_cles_en_metres():
+    """D'anciennes réponses nomment les champs par la distance en mètres."""
+    resultat = scheduler._parse_race_prediction(
+        {"calendarDate": "2026-08-19", "time5000": 1200, "time42195": 11400}, user_id=1)
     assert resultat["time_5k_seconds"] == 1200
     assert resultat["time_marathon_seconds"] == 11400
 
 
 def test_parse_predictions_retient_la_plus_recente():
     resultat = scheduler._parse_race_prediction([
-        {"calendarDate": "2026-07-01", "time5000": 1300},
-        {"calendarDate": "2026-08-19", "time5000": 1200},
+        {"calendarDate": "2026-07-01", "time5K": 1300},
+        {"calendarDate": "2026-08-19", "time5K": 1200},
     ], user_id=1)
     assert resultat["date"] == "2026-08-19"
     assert resultat["time_5k_seconds"] == 1200
@@ -310,9 +321,22 @@ async def test_les_appels_de_plage_ne_sont_faits_qu_une_fois(uid, db):
             appels["pesees"] += 1
             return {}
 
-        def get_race_predictions(self, debut, fin):
+        def get_race_predictions(self):
             appels["predictions"] += 1
             return {}
 
     await scheduler.sync_user(ClientTemoin(), uid, db, days_back=30)
     assert appels == {"pesees": 1, "predictions": 1}
+
+
+async def test_une_source_en_echec_n_est_plus_masquee(uid, db):
+    """Les wrappers avalaient l'erreur : le journal disait « ok » alors
+    qu'une source avait échoué."""
+    class PredictionsCassees(ClientSimule):
+        def get_race_predictions(self):
+            raise RuntimeError("paramètres refusés par Garmin")
+
+    await scheduler.sync_user(PredictionsCassees(), uid, db, days_back=0)
+    journal = db.query(SyncLog).filter_by(user_id=uid).one()
+    assert journal.statut == "partiel"
+    assert "paramètres refusés" in journal.erreur

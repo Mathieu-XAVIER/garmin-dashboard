@@ -193,30 +193,22 @@ class GarminClient:
             logger.error(f"Erreur get_hrv({target_date}) : {e}")
             return {}
 
+    # Contrairement aux méthodes ci-dessus, ces trois-là laissent remonter
+    # leurs erreurs : la synchro les intercepte et les journalise dans
+    # SyncLog. Les avaler ici produirait un statut « ok » alors qu'une
+    # source a échoué — c'est ce qui masquait le bug des prédictions.
     def get_body_composition(self, start_date, end_date):
-        try:
-            return self.client.get_body_composition(
-                start_date.isoformat(), end_date.isoformat()
-            )
-        except Exception as e:
-            logger.error(f"Erreur get_body_composition : {e}")
-            return {}
+        return self.client.get_body_composition(
+            start_date.isoformat(), end_date.isoformat()
+        )
 
     def get_training_readiness(self, target_date):
-        try:
-            return self.client.get_training_readiness(target_date.isoformat())
-        except Exception as e:
-            logger.error(f"Erreur get_training_readiness({target_date}) : {e}")
-            return []
+        return self.client.get_training_readiness(target_date.isoformat())
 
-    def get_race_predictions(self, start_date, end_date):
-        try:
-            return self.client.get_race_predictions(
-                start_date.isoformat(), end_date.isoformat()
-            )
-        except Exception as e:
-            logger.error(f"Erreur get_race_predictions : {e}")
-            return {}
+    def get_race_predictions(self):
+        """Garmin refuse une plage partielle et ne renvoie que la dernière
+        estimation : on appelle donc sans aucun paramètre."""
+        return self.client.get_race_predictions()
 
     def get_date_range(self, days_back):
         today = date.today()

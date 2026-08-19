@@ -177,11 +177,13 @@ def _parse_training_readiness(raw, target_date, user_id: int):
     }
 
 
+# Garmin nomme ses champs par distance symbolique ; d'anciennes réponses
+# utilisaient la distance en mètres, on accepte les deux.
 _DISTANCES_PREDITES = {
-    "time_5k_seconds": 5000,
-    "time_10k_seconds": 10000,
-    "time_half_seconds": 21097,
-    "time_marathon_seconds": 42195,
+    "time_5k_seconds":       ("time5K", "time5000"),
+    "time_10k_seconds":      ("time10K", "time10000"),
+    "time_half_seconds":     ("timeHalfMarathon", "time21097"),
+    "time_marathon_seconds": ("timeMarathon", "time42195"),
 }
 
 
@@ -197,8 +199,8 @@ def _parse_race_prediction(raw, user_id: int):
         return None
 
     donnees = {"user_id": user_id, "date": jour, "raw": raw}
-    for colonne, metres in _DISTANCES_PREDITES.items():
-        donnees[colonne] = raw.get(f"time{metres}")
+    for colonne, cles in _DISTANCES_PREDITES.items():
+        donnees[colonne] = next((raw[c] for c in cles if raw.get(c)), None)
     if not any(donnees[c] for c in _DISTANCES_PREDITES):
         return None
     return donnees
@@ -254,7 +256,7 @@ def _sync_user_blocking(client: GarminClient, user_id: int, db: Session, days_ba
 
     # Prédictions de course : idem, un seul appel.
     try:
-        brut = client.get_race_predictions(start, today)
+        brut = client.get_race_predictions()
         data = _parse_race_prediction(brut, user_id)
         if data:
             _upsert(db, RacePrediction, {"date": data["date"], "user_id": user_id}, data)
